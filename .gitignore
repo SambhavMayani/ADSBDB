@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables / secrets
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local data
+data/
+downloads/
+
+# MinIO local data
+minio_data/
+
+# ChromaDB local data
+chroma_data/
+
+# Jupyter
+.ipynb_checkpoints/

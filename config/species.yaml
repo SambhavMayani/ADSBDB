@@ -1,0 +1,54 @@
+project:
+  name: EcoSentinel
+  region: Iberian Peninsula
+
+species:
+  - id: lynx_pardinus
+    scientific_name: Lynx pardinus
+    common_name_en: Iberian lynx
+    common_name_es: Lince ibérico
+
+  - id: canis_lupus
+    scientific_name: Canis lupus
+    common_name_en: Iberian wolf
+    common_name_es: Lobo ibérico
+
+  - id: cervus_elaphus
+    scientific_name: Cervus elaphus
+    common_name_en: Red deer
+    common_name_es: Ciervo rojo
+
+  - id: sus_scrofa
+    scientific_name: Sus scrofa
+    common_name_en: Wild boar
+    common_name_es: Jabalí
+
+  - id: aquila_chrysaetos
+    scientific_name: Aquila chrysaetos
+    common_name_en: Golden eagle
+    common_name_es: Águila real
+
+  - id: bubo_bubo
+    scientific_name: Bubo bubo
+    common_name_en: Eurasian eagle-owl
+    common_name_es: Búho real
+
+  - id: erithacus_rubecula
+    scientific_name: Erithacus rubecula
+    common_name_en: European robin
+    common_name_es: Petirrojo europeo
+
+  - id: alcedo_atthis
+    scientific_name: Alcedo atthis
+    common_name_en: Common kingfisher
+    common_name_es: Martín pescador común
+
+  - id: pelophylax_perezi
+    scientific_name: Pelophylax perezi
+    common_name_en: Iberian water frog
+    common_name_es: Rana común
+
+  - id: timon_lepidus
+    scientific_name: Timon lepidus
+    common_name_en: Ocellated lizard
+    common_name_es: Lagarto ocelado
