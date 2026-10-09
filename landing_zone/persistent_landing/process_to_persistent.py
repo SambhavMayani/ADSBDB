@@ -1,9 +1,11 @@
 import argparse
+import hashlib
+import json
 import os
 import re
-from datetime import timezone
+from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import boto3
 from botocore.exceptions import ClientError
@@ -18,6 +20,7 @@ BUCKET_NAME = "landing-zone"
 
 TEMPORAL_PREFIX = "temporal_landing/"
 PERSISTENT_PREFIX = "persistent_landing/"
+CONTROL_COMPLETED_PREFIX = "_control/completed/"
 
 
 # ---------------------------------------------------------
@@ -343,6 +346,261 @@ def object_exists(object_key):
 
 
 # ---------------------------------------------------------
+# Landing completion registry
+# ---------------------------------------------------------
+
+def build_control_key(temporal_key):
+    """
+    Build a deterministic control key for one completed
+    Landing ingestion.
+
+    The complete Temporal key is hashed so that the registry
+    lookup is direct and independent from the organization of
+    Persistent Landing.
+    """
+
+    control_id = hashlib.sha256(
+        temporal_key.encode("utf-8")
+    ).hexdigest()
+
+    return (
+        f"{CONTROL_COMPLETED_PREFIX}"
+        f"{control_id}.json"
+    )
+
+
+def create_completion_marker(
+    temporal_key,
+    persistent_key,
+    object_info,
+):
+    """
+    Record that an asset successfully completed the Landing
+    Zone.
+
+    This function must only be called after the Persistent
+    object has been verified. The marker is operational state,
+    not dataset content and not a Trusted Zone deduplication
+    record.
+    """
+
+    temporal_metadata = (
+        get_required_temporal_metadata(
+            object_info
+        )
+    )
+
+    asset_hash, original_filename = (
+        parse_temporal_object_key(
+            temporal_key
+        )
+    )
+
+    control_key = build_control_key(
+        temporal_key
+    )
+
+    marker = {
+        "temporal_key": temporal_key,
+        "persistent_key": persistent_key,
+        "modality": temporal_metadata["modality"],
+        "species_id": temporal_metadata["species_id"],
+        "source_name": temporal_metadata["source_name"],
+        "asset_hash": asset_hash,
+        "original_filename": original_filename,
+        "completed_at": datetime.now(
+            timezone.utc
+        ).isoformat(),
+    }
+
+    body = json.dumps(
+        marker,
+        ensure_ascii=False,
+        indent=2,
+    ).encode("utf-8")
+
+    minio_client.put_object(
+        Bucket=BUCKET_NAME,
+        Key=control_key,
+        Body=body,
+        ContentType="application/json",
+    )
+
+    if not object_exists(
+        control_key
+    ):
+        raise RuntimeError(
+            "Completion marker verification failed: "
+            f"{control_key}"
+        )
+
+    return control_key
+
+
+def list_persistent_objects():
+    """
+    List every data object currently stored in Persistent
+    Landing.
+
+    This is used only for one-time control-registry backfill of
+    objects created before the registry was introduced.
+    """
+
+    paginator = minio_client.get_paginator(
+        "list_objects_v2"
+    )
+
+    object_keys = []
+
+    for page in paginator.paginate(
+        Bucket=BUCKET_NAME,
+        Prefix=PERSISTENT_PREFIX,
+    ):
+        for item in page.get("Contents", []):
+            object_keys.append(
+                item["Key"]
+            )
+
+    return sorted(object_keys)
+
+
+def backfill_completion_markers():
+    """
+    Create missing completion markers for Persistent objects
+    produced before the control registry existed.
+
+    Persistent metadata already contains the encoded original
+    Temporal key, so the same deterministic control identifier
+    can be reconstructed without modifying the dataset object.
+    """
+
+    persistent_objects = (
+        list_persistent_objects()
+    )
+
+    created_count = 0
+    existing_count = 0
+    skipped_count = 0
+    error_count = 0
+
+    print(
+        "Persistent objects found for backfill: "
+        f"{len(persistent_objects)}"
+    )
+    print()
+
+    for persistent_key in persistent_objects:
+
+        try:
+            persistent_info = minio_client.head_object(
+                Bucket=BUCKET_NAME,
+                Key=persistent_key,
+            )
+
+            metadata = persistent_info.get(
+                "Metadata",
+                {},
+            )
+
+            encoded_temporal_key = metadata.get(
+                "temporal_object_key_encoded"
+            )
+
+            if not encoded_temporal_key:
+                print(
+                    "SKIP NO TEMPORAL KEY: "
+                    f"{persistent_key}"
+                )
+                skipped_count += 1
+                continue
+
+            temporal_key = unquote(
+                encoded_temporal_key
+            )
+
+            control_key = build_control_key(
+                temporal_key
+            )
+
+            if object_exists(
+                control_key
+            ):
+                print(
+                    "ALREADY MARKED: "
+                    f"{persistent_key}"
+                )
+                existing_count += 1
+                continue
+
+            original_filename = unquote(
+                metadata.get(
+                    "original_filename_encoded",
+                    "",
+                )
+            )
+
+            marker = {
+                "temporal_key": temporal_key,
+                "persistent_key": persistent_key,
+                "modality": metadata.get("modality"),
+                "species_id": metadata.get("species_id"),
+                "source_name": metadata.get("source_name"),
+                "asset_hash": metadata.get("asset_hash"),
+                "original_filename": original_filename,
+                "completed_at": datetime.now(
+                    timezone.utc
+                ).isoformat(),
+                "backfilled": True,
+            }
+
+            body = json.dumps(
+                marker,
+                ensure_ascii=False,
+                indent=2,
+            ).encode("utf-8")
+
+            minio_client.put_object(
+                Bucket=BUCKET_NAME,
+                Key=control_key,
+                Body=body,
+                ContentType="application/json",
+            )
+
+            if not object_exists(
+                control_key
+            ):
+                raise RuntimeError(
+                    "Backfill marker verification failed: "
+                    f"{control_key}"
+                )
+
+            print(
+                "CREATED MARKER: "
+                f"{persistent_key}"
+            )
+            created_count += 1
+
+        except Exception as error:
+            error_count += 1
+
+            print(
+                f"ERROR: {persistent_key}"
+            )
+            print(
+                f"       {error}"
+            )
+
+    print()
+    print("=" * 70)
+    print("Completion registry backfill finished")
+    print(f"Created:         {created_count}")
+    print(f"Already marked:  {existing_count}")
+    print(f"Skipped:         {skipped_count}")
+    print(f"Errors:          {error_count}")
+    print("=" * 70)
+
+
+# ---------------------------------------------------------
 # Copy Temporal -> Persistent
 # ---------------------------------------------------------
 
@@ -413,13 +671,16 @@ def process_temporal_objects(
     Process objects from Temporal Landing into Persistent
     Landing.
 
-    Steps:
-    1. Read Temporal metadata.
-    2. Build the organized Persistent key.
-    3. Skip the copy if the Persistent object already exists.
-    4. Copy the raw object without altering its content.
-    5. Verify that the Persistent copy exists.
-    6. Delete the processed Temporal object.
+    Safe processing order:
+    1. Read and validate Temporal metadata.
+    2. Build the Persistent key and completion-marker key.
+    3. If the completion marker already exists, the asset has
+       already completed Landing and the Temporal copy can be
+       removed.
+    4. Otherwise copy to Persistent when needed.
+    5. Verify the Persistent object exists.
+    6. Create and verify the completion marker.
+    7. Delete the Temporal object only after both verifications.
 
     dry_run=True displays the planned operations without
     modifying MinIO.
@@ -435,7 +696,9 @@ def process_temporal_objects(
         )
 
     copied_count = 0
-    existing_count = 0
+    persistent_existing_count = 0
+    already_completed_count = 0
+    marker_created_count = 0
     deleted_count = 0
     error_count = 0
 
@@ -453,11 +716,20 @@ def process_temporal_objects(
                 temporal_key
             )
 
+            # Validate provenance before any destructive action.
+            get_required_temporal_metadata(
+                object_info
+            )
+
             persistent_key = (
                 build_persistent_key(
                     temporal_key,
                     object_info,
                 )
+            )
+
+            control_key = build_control_key(
+                temporal_key
             )
 
             print(
@@ -468,6 +740,10 @@ def process_temporal_objects(
                 f"PERSISTENT: {persistent_key}"
             )
 
+            print(
+                f"CONTROL:    {control_key}"
+            )
+
             if dry_run:
                 print(
                     "ACTION:     DRY RUN"
@@ -476,18 +752,14 @@ def process_temporal_objects(
                 continue
 
             if object_exists(
-                persistent_key
+                control_key
             ):
-
                 print(
-                    "ACTION:     ALREADY EXISTS"
+                    "ACTION:     ALREADY COMPLETED"
                 )
 
-                existing_count += 1
+                already_completed_count += 1
 
-                # The object has already been safely
-                # persisted, so the Temporal copy can
-                # be removed.
                 delete_temporal_object(
                     temporal_key
                 )
@@ -501,25 +773,46 @@ def process_temporal_objects(
                 print("-" * 70)
                 continue
 
-            copy_to_persistent(
+            if object_exists(
+                persistent_key
+            ):
+                print(
+                    "ACTION:     PERSISTENT ALREADY EXISTS"
+                )
+
+                persistent_existing_count += 1
+
+            else:
+                copy_to_persistent(
+                    temporal_key,
+                    persistent_key,
+                    object_info,
+                )
+
+                if not object_exists(
+                    persistent_key
+                ):
+                    raise RuntimeError(
+                        "Persistent copy verification failed: "
+                        f"{persistent_key}"
+                    )
+
+                copied_count += 1
+
+                print(
+                    "ACTION:     COPIED"
+                )
+
+            create_completion_marker(
                 temporal_key,
                 persistent_key,
                 object_info,
             )
 
-            # Verify the copy before deleting Temporal.
-            if not object_exists(
-                persistent_key
-            ):
-                raise RuntimeError(
-                    "Persistent copy verification failed: "
-                    f"{persistent_key}"
-                )
-
-            copied_count += 1
+            marker_created_count += 1
 
             print(
-                "ACTION:     COPIED"
+                "CONTROL:    CREATED"
             )
 
             delete_temporal_object(
@@ -556,19 +849,30 @@ def process_temporal_objects(
     )
 
     print(
-        f"Copied:          {copied_count}"
+        f"Copied:                     {copied_count}"
     )
 
     print(
-        f"Already existed: {existing_count}"
+        "Persistent already existed: "
+        f"{persistent_existing_count}"
     )
 
     print(
-        f"Temporal deleted:{deleted_count}"
+        "Already completed:          "
+        f"{already_completed_count}"
     )
 
     print(
-        f"Errors:          {error_count}"
+        "Completion markers created: "
+        f"{marker_created_count}"
+    )
+
+    print(
+        f"Temporal deleted:           {deleted_count}"
+    )
+
+    print(
+        f"Errors:                     {error_count}"
     )
 
     print("=" * 70)
@@ -606,7 +910,21 @@ def main():
         ),
     )
 
+    parser.add_argument(
+        "--backfill-control",
+        action="store_true",
+        help=(
+            "Create missing completion markers for "
+            "Persistent objects created before the "
+            "control registry existed."
+        ),
+    )
+
     args = parser.parse_args()
+
+    if args.backfill_control:
+        backfill_completion_markers()
+        return
 
     process_temporal_objects(
         max_items=args.max_items,

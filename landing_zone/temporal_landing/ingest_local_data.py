@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 import hashlib
 import boto3
@@ -25,6 +26,7 @@ RAW_DATASET_ROOT = (
 BUCKET_NAME = "landing-zone"
 
 TEMPORAL_PREFIX = "temporal_landing"
+CONTROL_COMPLETED_PREFIX = "_control/completed"
 
 
 # ---------------------------------------------------------
@@ -109,8 +111,6 @@ def get_source_name(file_info):
     if not metadata_path.exists():
         return "unknown"
 
-    import json
-
     with open(
         metadata_path,
         "r",
@@ -183,6 +183,15 @@ def build_object_metadata(file_info):
         file_info
     )
 
+    if (
+        not source_name
+        or source_name.strip().lower() == "unknown"
+    ):
+        raise ValueError(
+            "Missing or invalid acquisition metadata "
+            f"for '{relative_path}': source_name"
+        )
+
     return {
         "modality": modality,
         "species_id": species_id,
@@ -219,6 +228,45 @@ def object_exists(object_key):
             return False
 
         raise
+
+
+def build_control_key(temporal_key):
+    """
+    Build the deterministic MinIO key used to record that one
+    ingestion asset has successfully completed the Landing Zone.
+
+    The identifier is derived from the complete Temporal key.
+    Since that key contains both the content hash and original
+    filename, this check controls ingestion idempotence without
+    performing data-quality deduplication.
+    """
+
+    control_id = hashlib.sha256(
+        temporal_key.encode("utf-8")
+    ).hexdigest()
+
+    return (
+        f"{CONTROL_COMPLETED_PREFIX}/"
+        f"{control_id}.json"
+    )
+
+
+def already_completed(temporal_key):
+    """
+    Check whether the asset already completed the Landing Zone.
+
+    Completion markers are stored independently from Temporal
+    and Persistent data, so this ingestion script does not need
+    to know how Persistent Landing is organized.
+    """
+
+    control_key = build_control_key(
+        temporal_key
+    )
+
+    return object_exists(
+        control_key
+    )
 
 
 # ---------------------------------------------------------
@@ -291,16 +339,22 @@ def ingest_dataset(max_uploads=None):
     """
     Ingest discovered raw assets into Temporal Landing.
 
-    Files already present in MinIO are skipped so that
-    repeated executions do not re-ingest the same object.
+    Incremental behavior:
+    1. If the exact object is still in Temporal, skip it.
+    2. If a completion marker exists, the asset already
+       completed the Landing Zone and is skipped.
+    3. Otherwise, upload it to Temporal.
 
-    max_uploads can be used for controlled test executions.
+    max_uploads limits only new uploads. Skipped files do not
+    consume that limit.
     """
 
     files = discover_local_files()
 
     uploaded_count = 0
-    skipped_count = 0
+    temporal_skipped_count = 0
+    completed_skipped_count = 0
+    error_count = 0
 
     print(f"Discovered assets: {len(files)}")
     print()
@@ -313,27 +367,60 @@ def ingest_dataset(max_uploads=None):
         ):
             break
 
-        object_key = build_object_key(file_info)
-
-        if object_exists(object_key):
-            print(
-                f"SKIP: {file_info['relative_path']}"
+        try:
+            object_key = build_object_key(
+                file_info
             )
-            skipped_count += 1
-            continue
 
-        upload_file(
-            file_info,
-            object_key,
-        )
+            if object_exists(object_key):
+                print(
+                    "SKIP TEMPORAL: "
+                    f"{file_info['relative_path']}"
+                )
+                temporal_skipped_count += 1
+                continue
 
-        uploaded_count += 1
+            if already_completed(
+                object_key
+            ):
+                print(
+                    "SKIP COMPLETED: "
+                    f"{file_info['relative_path']}"
+                )
+                completed_skipped_count += 1
+                continue
+
+            upload_file(
+                file_info,
+                object_key,
+            )
+
+            uploaded_count += 1
+
+        except Exception as error:
+            error_count += 1
+
+            print(
+                "ERROR: "
+                f"{file_info['relative_path']}"
+            )
+            print(
+                f"       {error}"
+            )
 
     print()
     print("=" * 60)
     print("Temporal Landing ingestion completed")
-    print(f"Uploaded: {uploaded_count}")
-    print(f"Skipped:  {skipped_count}")
+    print(f"Uploaded:              {uploaded_count}")
+    print(
+        "Skipped in Temporal:   "
+        f"{temporal_skipped_count}"
+    )
+    print(
+        "Skipped as completed:  "
+        f"{completed_skipped_count}"
+    )
+    print(f"Errors:                {error_count}")
     print("=" * 60)
 
 
