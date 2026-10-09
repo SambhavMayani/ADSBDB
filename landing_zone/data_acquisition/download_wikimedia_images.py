@@ -78,17 +78,38 @@ def clean_html(value):
     return html.unescape(value).strip()
 
 
-def safe_filename(filename):
+def safe_filename(filename, max_length=140):
     """
-    Remove characters that cannot safely be used in
-    Windows filenames.
+    Convert a Wikimedia filename into a Windows-safe local
+    filename while preserving its file extension.
+
+    Besides replacing invalid Windows characters, long names
+    are truncated to avoid path-length errors.
     """
 
-    return re.sub(
+    filename = re.sub(
         r'[<>:"/\\|?*]',
         "_",
         filename,
     )
+
+    # Windows does not allow filenames ending in spaces or dots.
+    filename = filename.rstrip(" .")
+
+    path = Path(filename)
+
+    extension = path.suffix
+    stem = path.stem
+
+    max_stem_length = (
+        max_length
+        - len(extension)
+    )
+
+    if len(stem) > max_stem_length:
+        stem = stem[:max_stem_length]
+
+    return f"{stem}{extension}"
 
 
 def sha256_file(path):
