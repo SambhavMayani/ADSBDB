@@ -52,15 +52,15 @@ This prevents the species list from being hardcoded inside ingestion scripts.
 
 # 2. Data Sources
 
-The current and planned sources are:
+The selected sources and current implementation status are:
 
 | Modality | Source | Status |
 |---|---|---|
 | Images | Wikimedia Commons | Implemented |
-| Audio | Xeno-canto | Pending |
-| Text | MITECO / other reliable biodiversity sources | Pending |
+| Audio | Xeno-canto | Script integrated; full dataset validation pending |
+| Text | MITECO / other reliable biodiversity sources | Script integrated; full dataset validation pending |
 
-The image acquisition pipeline currently contains:
+The validated image acquisition pipeline contains:
 
 - 10 species;
 - 10 images per species;
@@ -114,7 +114,7 @@ The image flow is currently implemented and validated end-to-end.
 
 ## Formatted Zone
 
-The Formatted Zone will convert each modality into a canonical representation while preserving the original raw asset in Landing.
+The Formatted Zone standardizes each modality into a canonical representation without altering the Persistent Landing originals. **Image formatting is implemented and validated (100 JPEG/RGB outputs); audio and text formatting are pending.**
 
 ## Trusted Zone
 
@@ -139,7 +139,9 @@ ecosentinel-adsdb/
 |-- landing_zone/
 |   |
 |   |-- data_acquisition/
-|   |   `-- download_wikimedia_images.py
+|   |   |-- download_wikimedia_images.py
+|   |   |-- download_xeno_canto_audio.py
+|   |   `-- download_species_texts.py
 |   |
 |   |-- temporal_landing/
 |   |   `-- ingest_local_data.py
@@ -148,6 +150,7 @@ ecosentinel-adsdb/
 |       `-- process_to_persistent.py
 |
 |-- formatted_zone/
+|   `-- format_images.py
 |
 |-- trusted_zone/
 |
@@ -160,9 +163,11 @@ ecosentinel-adsdb/
 |   `-- initialize_storage.py
 |
 |-- tests/
+|   `-- test_audio_acquisition.py
 |
 |-- docs/
 |   |-- landing_zone_documentation.md
+|   |-- formatted_zone_documentation.md
 |   `-- decision_log.md
 |
 |-- docker-compose.yml
@@ -420,7 +425,7 @@ docs/landing_zone_documentation.md
 
 # 11. Image Acquisition
 
-The current implemented acquisition script is:
+The implemented and end-to-end validated **image** acquisition script is:
 
 ```text
 landing_zone/data_acquisition/download_wikimedia_images.py
@@ -445,16 +450,63 @@ The acquisition layer does not convert image formats. Format normalization belon
 
 ---
 
-# 12. Local Setup
+# 12. Formatted Images — Canonical Representation
 
-## 12.1 Clone the repository
+Image formatting is implemented in:
+
+```text
+formatted_zone/format_images.py
+```
+
+It reads the 100 raw image objects under `landing-zone/persistent_landing/images/`, converts them into canonical JPEG files, and writes the output into `formatted-zone/images/<species_id>/`. Persistent originals are not removed.
+
+The current formatting policy is:
+
+| Property | Contract |
+|---|---|
+| Source extensions | `.jpg`, `.jpeg`, `.png`, `.webp` |
+| Internal formats | JPEG, PNG, WEBP, MPO |
+| Canonical output | JPEG with `.jpg` extension |
+| Color mode | RGB |
+| JPEG encoding quality | 95 |
+| Dimensions | Preserved |
+| Orientation | Pixels not rotated; EXIF orientation retained when available |
+| Transparency | White background where required for JPEG |
+| MPO | Primary frame only; full raw file retained in Persistent |
+
+The output object retains source lineage metadata including an encoded Persistent key, actual detected source format, formatting policy/version, and UTC formatting timestamp. The hash in the output filename is the source asset hash, **not** a hash of newly encoded JPEG bytes.
+
+Run after completing Persistent Landing ingestion:
+
+```bash
+# Preview one pending transformation (read-only)
+python formatted_zone/format_images.py --dry-run --max-items 1
+
+# Convert one pending image
+python formatted_zone/format_images.py --max-items 1
+
+# Convert all remaining images
+python formatted_zone/format_images.py
+```
+
+The script is incremental: it skips compatible existing outputs and reports conflicting objects rather than overwriting them. `--max-items` limits new conversions, not scanned objects.
+
+Validated image state: **100 raw images in Persistent Landing and 100 JPEG/RGB images in Formatted**, ten per species, with zero errors in the final technical validation.
+
+Full specifications, trade-offs and MPO policy: [`docs/formatted_zone_documentation.md`](docs/formatted_zone_documentation.md).
+
+---
+
+# 13. Local Setup
+
+## 13.1 Clone the repository
 
 ```bash
 git clone <repository-url>
 cd <repository-folder>
 ```
 
-## 12.2 Install Docker Desktop
+## 13.2 Install Docker Desktop
 
 Docker Desktop must be installed and running.
 
@@ -478,7 +530,7 @@ Check Docker Compose:
 docker.exe compose version
 ```
 
-## 12.3 Configure environment variables
+## 13.3 Configure environment variables
 
 Create a local `.env` from:
 
@@ -503,7 +555,7 @@ Each developer should use local credentials.
 
 `.env` is ignored by Git and must not be committed.
 
-## 12.4 Start object storage
+## 13.4 Start object storage
 
 ```bash
 docker.exe compose up -d
@@ -529,7 +581,7 @@ http://localhost:9001
 
 ---
 
-# 13. Python Environment
+# 14. Python Environment
 
 Create a virtual environment:
 
@@ -549,9 +601,11 @@ Install dependencies:
 python -m pip install -r requirements.txt
 ```
 
+Image formatting uses Pillow; the project dependency is pinned to the supported major-version range `Pillow>=10,<13` in `requirements.txt`.
+
 ---
 
-# 14. Initialize Storage
+# 15. Initialize Storage
 
 Test the object-storage connection:
 
@@ -569,9 +623,9 @@ The initialization script is idempotent and can safely be executed multiple time
 
 ---
 
-# 15. Running the Current Image Pipeline
+# 16. Running the Current Image Pipeline
 
-## 15.1 Download images
+## 16.1 Download images
 
 Download up to 10 images per configured species:
 
@@ -589,7 +643,7 @@ python landing_zone/data_acquisition/download_wikimedia_images.py \
 
 Repeated execution is safe. Existing registered assets are reused rather than downloaded again.
 
-## 15.2 Ingest local assets into Temporal
+## 16.2 Ingest local assets into Temporal
 
 ```bash
 python landing_zone/temporal_landing/ingest_local_data.py
@@ -597,7 +651,7 @@ python landing_zone/temporal_landing/ingest_local_data.py
 
 The script reports separate counters for uploaded assets, objects already in Temporal, already completed assets and errors.
 
-## 15.3 Process Temporal into Persistent
+## 16.3 Process Temporal into Persistent
 
 Process all available Temporal assets:
 
@@ -623,7 +677,7 @@ Backfill historical completion markers:
 python landing_zone/persistent_landing/process_to_persistent.py --backfill-control
 ```
 
-After a successful complete image run, the expected conceptual state is:
+After the validated complete image Landing run, the observed state is:
 
 ```text
 Temporal image objects:       0
@@ -631,9 +685,11 @@ Persistent image objects:   100
 Image completion markers:   100
 ```
 
+Then run the Formatted stage as described in **Section 12**. This produces the validated 100 canonical JPEG objects while keeping Persistent Landing intact.
+
 ---
 
-# 16. Metadata and Traceability
+# 17. Metadata and Traceability
 
 Metadata is kept only when it has a clear purpose.
 
@@ -664,7 +720,7 @@ Metadata supports:
 
 ---
 
-# 17. Deduplication Responsibility
+# 18. Deduplication Responsibility
 
 The Landing Zone does **not** perform quality deduplication.
 
@@ -686,12 +742,18 @@ This separation keeps ingestion control and quality control independent.
 
 ---
 
-# 18. Documentation
+# 19. Documentation
 
 Detailed Landing documentation:
 
 ```text
 docs/landing_zone_documentation.md
+```
+
+Formatted Zone implementation and image conversion policy:
+
+```text
+docs/formatted_zone_documentation.md
 ```
 
 Architectural decisions and their justification:
@@ -700,11 +762,11 @@ Architectural decisions and their justification:
 docs/decision_log.md
 ```
 
-These documents contain the rationale behind the completion registry, rejected alternatives, naming decisions, SHA-256 decisions, UTC timestamp decisions, the local-folder contract, limitations and trade-offs, and team handoff rules.
+These documents explain Landing ingestion state, object naming and traceability, UTC/SHA-256 choices, the Formatted image contract (including MPO and EXIF), alternatives, operational limitations and team handoff rules.
 
 ---
 
-# 19. Team Development Rules
+# 20. Team Development Rules
 
 To reduce integration problems:
 
@@ -717,7 +779,7 @@ To reduce integration problems:
 
 ---
 
-# 20. Stopping the Environment
+# 21. Stopping the Environment
 
 Stop Docker services:
 
@@ -735,7 +797,7 @@ docker.exe compose up -d
 
 ---
 
-# 21. Current Project Status
+# 22. Current Project Status
 
 | Component | Status |
 |---|---|
@@ -751,9 +813,11 @@ docker.exe compose up -d
 | Completion registry | Complete |
 | Incremental Landing ingestion | Complete |
 | Image Landing end-to-end validation | Complete |
-| Audio acquisition | Pending |
-| Text acquisition | Pending |
-| Formatted Zone | Pending |
+| Audio acquisition | Script integrated — end-to-end validation pending |
+| Text acquisition | Script integrated — end-to-end validation pending |
+| Formatted images | Complete — 100 JPEG/RGB objects validated |
+| Formatted audio | Pending |
+| Formatted text | Pending |
 | Trusted Zone | Pending |
 | Exploitation Zone | Pending |
 | Multimodal tasks | Pending |
@@ -761,23 +825,14 @@ docker.exe compose up -d
 
 ---
 
-# 22. Next Development Step
+# 23. Next Development Step
 
-The common Landing architecture and image modality are currently frozen unless a real integration issue is found.
+The common Landing flow, image acquisition, and Formatted image conversion are implemented and validated.
 
-The next parallel development tasks are:
+Next work can proceed in parallel:
 
-```text
-Audio acquisition
-Text acquisition
-```
+- Validate and, if needed, complete the integrated audio and text acquisition scripts against the common raw-data contract; their complete datasets have not yet been verified here.
+- Implement modality-specific `format_audio.py` and `format_text.py` once their actual source encodings are known.
+- Start designing image Trusted Zone quality checks and profiling, with duplicate detection separated from ingestion idempotence.
 
-Both should produce data compatible with:
-
-```text
-data/raw_dataset/<modality>/<species_id>/
-```
-
-so that the existing generic Landing scripts can process them without modification.
-
-After acquisition for all modalities is complete, development continues with the Formatted and Trusted zones.
+Do not modify shared Landing scripts for modality-specific formatting operations. Record important decisions in `docs/decision_log.md`.

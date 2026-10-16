@@ -538,29 +538,229 @@ This keeps scripts readable without duplicating the final explanatory report.
 
 ---
 
+
+## D29 — Use JPEG as the canonical image encoding in Formatted
+
+**Decision**
+
+All formatted images use JPEG with the `.jpg` extension.
+
+**Why**
+
+- One predictable syntax for subsequent processing.
+- Wide support across image-processing tools.
+- Generally appropriate file sizes for the predominantly photographic wildlife dataset.
+
+**Trade-off**
+
+JPEG uses lossy compression and may alter image pixels. The raw source remains available in Persistent Landing.
+
+---
+
+## D30 — Encode formatted images as RGB
+
+**Decision**
+
+Convert all supported source pixel modes to RGB before JPEG encoding.
+
+**Why**
+
+A single compatible pixel mode reduces variation in downstream decoding.
+
+**Trade-off**
+
+Original source modes and transparency cannot be represented identically by RGB JPEG.
+
+---
+
+## D31 — Flatten transparency over white
+
+**Decision**
+
+Composite source images containing transparency onto an opaque white background.
+
+**Why**
+
+JPEG does not support alpha transparency.
+
+**Trade-off**
+
+The appearance of previously transparent pixels depends on the chosen background. Persistent retains the original image.
+
+---
+
+## D32 — Use JPEG quality 95
+
+**Decision**
+
+Use `quality=95` as a fixed encoder parameter.
+
+**Why**
+
+Provides a consistent conversion policy that prioritizes visual fidelity for photographic images.
+
+**Trade-off**
+
+This is **not** a quality score; even high-quality JPEG recompression remains lossy. File sizes may vary.
+
+---
+
+## D33 — Preserve dimensions and defer visual quality corrections
+
+**Decision**
+
+Formatted does not resize, crop, sharpen, deduplicate or rotate image pixels to correct EXIF orientation.
+
+**Why**
+
+Its responsibility is format homogenization rather than generic data cleaning or model-specific preparation.
+
+**Trade-off**
+
+Different source resolutions remain present. Some viewers may interpret retained EXIF orientation metadata differently.
+
+---
+
+## D34 — Convert only the primary MPO frame
+
+**Decision**
+
+Allow internal MPO encoding even when the source filename ends in `.jpg`; export frame 0 as the canonical JPEG.
+
+**Why**
+
+Maintains the intended one-source-object-to-one-formatted-object mapping and allows all wildlife image assets to pass the same formatted contract.
+
+**Evidence**
+
+Four eagle MPO source objects contained two frames each, and two wolf MPO source objects contained three frames each.
+
+**Trade-off**
+
+Eight non-primary internal frames are not exported. The six original complete MPO files remain stored in Persistent Landing.
+
+**Alternative**
+
+Export all frames into separate JPEGs with explicit frame identifiers and one-to-many lineage. This remains an option if analytical tasks need secondary frames.
+
+---
+
+## D35 — Mirror species hierarchy and retain original source identity
+
+**Decision**
+
+Use `formatted-zone/images/<species_id>/<persistent_filename_stem>.jpg` for outputs.
+
+**Why**
+
+The Persistent filename already includes source, species, UTC ingestion timestamp and raw technical hash.
+
+**Important**
+
+The embedded `asset_hash` describes the raw input asset. It is not the checksum of the converted JPEG.
+
+---
+
+## D36 — Propagate lineage and record the format policy
+
+**Decision**
+
+Copy relevant Persistent object metadata and add `source_persistent_key_encoded`, `original_format`, `formatted_format`, `color_mode`, `jpeg_quality`, `format_version` and `formatted_at`.
+
+**Why**
+
+Allows downstream systems to trace a canonical asset to its raw source and identify the transformation policy.
+
+**Trade-off**
+
+S3 user metadata is not a full metadata catalog. Richer future lineage may require structured sidecar documents or a separate registry.
+
+---
+
+## D37 — Keep Persistent Landing intact during formatting
+
+**Decision**
+
+Do not delete or replace raw Persistent objects after successfully creating canonical images.
+
+**Why**
+
+Supports auditability, reproduction, and reformatting if transformation policy changes or errors are found.
+
+**Trade-off**
+
+Maintaining raw and formatted copies consumes additional storage.
+
+---
+
+## D38 — Use deterministic output keys and conflict-safe reexecution
+
+**Decision**
+
+Skip a previously formatted asset only when its destination metadata and format policy match expectations. Report incompatible existing outputs as errors instead of overwriting them.
+
+**Why**
+
+Prevents duplicate work and avoids silently hiding changed formatting contracts or incorrect lineage.
+
+**Trade-off**
+
+A changed formatting policy requires explicit versioning and planned regeneration of existing objects.
+
+---
+
+## D39 — Keep formatting separate for each modality
+
+**Decision**
+
+Image conversion lives in `formatted_zone/format_images.py`. Audio and text will have their own dedicated scripts.
+
+**Why**
+
+The P1 specification requires per-format homogenization scripts, and the actual conversions are modality-specific.
+
+**Status**
+
+Image formatting completed and validated; audio and text formatting pending.
+
+---
+
+## D40 — Validate the entire image batch in Formatted
+
+**Decision**
+
+Check actual decoded JPEG encoding, RGB mode, `.jpg` extension, metadata lineage, per-species counts, and absence of processing errors.
+
+**Evidence**
+
+Final validation passed for all 100 images (10 per species) with zero errors. Persistent Landing still holds the 100 originals.
+
+**Limitation**
+
+This technical validation does not replace the qualitative profiling and cleaning required in Trusted.
+
+---
+
 ## Current handoff state
 
-### Completed
+**Implemented and validated for images**
 
-```text
-Image acquisition
-Image acquisition metadata
-Temporal Landing
-Persistent Landing
-Completion registry
-Incremental Landing behavior
-Image end-to-end validation
-```
+- Wikimedia image acquisition and accompanying metadata.
+- Common Temporal and Persistent Landing flow, completion registry, and incremental behavior.
+- Formatted image conversion to JPEG/RGB, including first-frame MPO support.
+- End-to-end verification: 100 raw Persistent image objects and 100 valid canonical Formatted images (10 per species, zero formatting/validation errors).
 
-### Next
+**Implemented in the shared repository; full validation not yet recorded here**
 
-```text
-Audio acquisition
-Text acquisition
-Formatted Zone
-Trusted Zone
-Exploitation Zone
-Multimodal tasks
-Orchestration
-Final report + README integration
-```
+- Audio acquisition script: `landing_zone/data_acquisition/download_xeno_canto_audio.py`.
+- Text acquisition script: `landing_zone/data_acquisition/download_species_texts.py`.
+- Audio acquisition tests: `tests/test_audio_acquisition.py` (presence of tests does not imply the complete dataset has been validated).
+
+**Pending**
+
+- Full audio and text acquisition validation and any necessary integration changes.
+- Modality-specific audio and text formatting.
+- Trusted Zone, Exploitation Zone, multimodal tasks and final orchestration.
+- Final report and presentation.
+
+This status is a handoff snapshot, not a substitute for fresh test execution on each developer's environment.
