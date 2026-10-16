@@ -741,26 +741,219 @@ This technical validation does not replace the qualitative profiling and cleanin
 
 ---
 
+---
+
+## D41 — Choose FLAC/PCM16 for canonical audio
+
+**Decision**
+
+Use `.flac` with signed 16-bit PCM in Formatted audio, including for already-FLAC sources.
+
+**Why**
+
+The FLAC codec avoids an additional lossy *compression* step and can be decoded by common Python audio tools. It is consistent across audio inputs.
+
+**Trade-off**
+
+The conversion to PCM16 may quantize 24-bit or floating-point sources, and cannot recover information previously lost to MP3 or AAC. Complete original bytes remain in Persistent Landing.
+
+---
+
+## D42 — Defer resampling and channel normalization
+
+**Decision**
+
+Retain available input sample rate and channel count instead of forcing a particular rate or mono representation.
+
+**Why**
+
+Those parameters are largely determined by future model requirements rather than the syntactic format contract.
+
+**Trade-off**
+
+Formatted audio can still vary in sample rate and channel count; these properties must be checked by later consumers.
+
+---
+
+## D43 — Use the first audio stream and exclude source container extras
+
+**Decision**
+
+When ffmpeg can read a multi-stream input, format only the first audio stream, without copying embedded cover art, chapter information or source container-level tags.
+
+**Why**
+
+Provides one predictable audio asset per raw input. Key provenance is represented separately in S3 object metadata.
+
+**Trade-off**
+
+Additional audio streams and original container tags are not in Formatted; the full source remains available in Persistent.
+
+---
+
+## D44 — Use ffmpeg with a libsndfile fallback
+
+**Decision**
+
+Use an available ffmpeg binary for broad format support, with the `soundfile`/libsndfile decoder as a fallback for its supported formats.
+
+**Why**
+
+Supports typical Xeno-canto MP3 as well as common and less-common future source encodings.
+
+**Trade-off**
+
+Decodability depends on installed codec/library versions. A recognized extension alone does not guarantee successful decoding.
+
+---
+
+## D45 — Standardize text to UTF-8/LF/NFC plain text
+
+**Decision**
+
+Write `.txt` with UTF-8 without BOM, LF line endings, Unicode NFC, excluded control characters removed, and exactly one final newline.
+
+**Why**
+
+Simplifies parsing, indexing and cross-platform storage without applying relevance filters or deduplication.
+
+**Trade-off**
+
+Unicode normalization and line-ending changes alter source bytes. Markup and structured document conversion may also lose layout; originals remain in Persistent Landing.
+
+---
+
+## D46 — Extract text from heterogeneous input representations
+
+**Decision**
+
+Implement parsers for plaintext, Markdown, HTML/XML, JSON/JSONL, PDF with selectable text, DOCX and ODT.
+
+**Why**
+
+Meets the P1 requirement to implement real format conversion even when present data is mostly `.txt` and `.html`.
+
+**Trade-off**
+
+Complex layouts may be flattened, Markdown parsing is intentionally lightweight, and scanned/image-only PDFs require OCR outside the current implementation.
+
+---
+
+## D47 — Use deterministic-priority JSON extraction with a heuristic fallback
+
+**Decision**
+
+Search known text-bearing keys by breadth-first traversal (shallowest level first, key priority for ties). If none is usable, choose the longest nonempty string recursively. Handle JSON arrays/JSON Lines per record.
+
+**Why**
+
+Supports known schema conventions while allowing unknown source structures to yield a useful text candidate.
+
+**Trade-off**
+
+The fallback can choose irrelevant text. It must not be misrepresented as semantic verification; Trusted remains responsible for data-quality assessment.
+
+---
+
+## D48 — Use conflict-safe incremental formatting across modalities
+
+**Decision**
+
+Before skipping an existing audio or text output, verify encoded source key, canonical format, formatter version, declared MIME type and nonempty size. Report conflicts rather than overwriting by default.
+
+**Why**
+
+Aligns with the existing image formatter and protects source lineage and format-version consistency.
+
+**Trade-off**
+
+Some legacy outputs may require explicit reformatting. `--force` is available for deliberate replacement and should be used with care.
+
+---
+
+## D49 — Make dry-run limits match real processing limits
+
+**Decision**
+
+`--max-items` counts successful new conversions or planned conversions in dry-run mode; previously formatted assets do not count.
+
+**Why**
+
+A dry-run of one pending item should preview one pending operation, not all pending objects.
+
+**Trade-off**
+
+The number of source objects scanned before the limit is reached may be larger than the limit.
+
+---
+
+## D50 — Normalize common Formatted lineage metadata without removing modality detail
+
+**Decision**
+
+Retain the original audio/text metadata names (`source_format`, `canonical_format`, `formatter_version`, `formatted_timestamp`) and add shared aliases (`original_format`, `formatted_format`, `format_version`, `formatted_at`).
+
+**Why**
+
+Eases later multimodal processing while retaining compatibility with the contributor's existing contracts.
+
+**Trade-off**
+
+Some fields are duplicated for interoperability, and previous outputs may lack newly added aliases until regenerated. Image policy version `1` and audio/text version `1.0` remain modality-specific.
+
+---
+
+## D51 — Require valid provenance at the Formatted boundary
+
+**Decision**
+
+Require `modality`, `species_id`, `source_name` and `asset_hash`; verify that species metadata matches the Persistent object path. Explicitly close downloaded S3 stream bodies.
+
+**Why**
+
+Avoids misfiled data and preserves raw-object identity; stream closure improves reliability during larger runs.
+
+**Trade-off**
+
+Malformed/legacy Persistent objects must be corrected at their source rather than silently converted.
+
+---
+
+## D52 — Separate offline verification from end-to-end object-store validation
+
+**Decision**
+
+Record completed tests with their actual execution environment; do not label audio/text Formatted Zone as fully validated until uploads, metadata and outputs are checked in real SILO/MinIO.
+
+**Evidence**
+
+12 focused regression tests passed locally during the revision review. A contributor reported 36 earlier tests passing with simulated object storage, but those tests were not independently re-run here.
+
+**Remaining work**
+
+Run controlled one-object and full-batch MinIO tests for audio/text, inspect canonical outputs and object counts per species, and verify a second incremental run.
+
+---
+
 ## Current handoff state
 
-**Implemented and validated for images**
+**Implemented and end-to-end validated**
 
-- Wikimedia image acquisition and accompanying metadata.
-- Common Temporal and Persistent Landing flow, completion registry, and incremental behavior.
-- Formatted image conversion to JPEG/RGB, including first-frame MPO support.
-- End-to-end verification: 100 raw Persistent image objects and 100 valid canonical Formatted images (10 per species, zero formatting/validation errors).
+- Wikimedia image acquisition and the generic Landing image flow.
+- Completion registry and incremental ingestion for images.
+- Image Formatted conversion: 100 JPEG/RGB objects across ten species, zero final errors.
 
-**Implemented in the shared repository; full validation not yet recorded here**
+**Implemented but not validated end-to-end for the full datasets**
 
-- Audio acquisition script: `landing_zone/data_acquisition/download_xeno_canto_audio.py`.
-- Text acquisition script: `landing_zone/data_acquisition/download_species_texts.py`.
-- Audio acquisition tests: `tests/test_audio_acquisition.py` (presence of tests does not imply the complete dataset has been validated).
+- Xeno-canto audio and Wikipedia/GBIF text acquisition scripts.
+- Audio Formatted script targeting FLAC/PCM16.
+- Text Formatted script targeting UTF-8/LF/NFC plain text.
+- Audio/text formatting: 12 locally passed regression tests in this review; the contributor reported 36 additional earlier tests.
 
 **Pending**
 
-- Full audio and text acquisition validation and any necessary integration changes.
-- Modality-specific audio and text formatting.
+- Real object-store processing and complete outcome validation for audio and text.
 - Trusted Zone, Exploitation Zone, multimodal tasks and final orchestration.
 - Final report and presentation.
 
-This status is a handoff snapshot, not a substitute for fresh test execution on each developer's environment.
+This handoff is an implementation snapshot, not evidence of completed full-batch audio/text storage validation.

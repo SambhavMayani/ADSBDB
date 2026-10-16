@@ -58,7 +58,7 @@ The selected sources and current implementation status are:
 |---|---|---|
 | Images | Wikimedia Commons | Implemented |
 | Audio | Xeno-canto | Script integrated; full dataset validation pending |
-| Text | MITECO / other reliable biodiversity sources | Script integrated; full dataset validation pending |
+| Text | Wikipedia (Spanish/English) and GBIF; MITECO potentially indirect | Script integrated; full dataset validation pending |
 
 The validated image acquisition pipeline contains:
 
@@ -114,7 +114,7 @@ The image flow is currently implemented and validated end-to-end.
 
 ## Formatted Zone
 
-The Formatted Zone standardizes each modality into a canonical representation without altering the Persistent Landing originals. **Image formatting is implemented and validated (100 JPEG/RGB outputs); audio and text formatting are pending.**
+The Formatted Zone standardizes each modality into a canonical representation without altering the Persistent Landing originals. **Images are implemented and end-to-end validated (100 JPEG/RGB outputs). Audio and text formatters are implemented and locally regression-tested, but full MinIO validation is pending.**
 
 ## Trusted Zone
 
@@ -150,7 +150,9 @@ ecosentinel-adsdb/
 |       `-- process_to_persistent.py
 |
 |-- formatted_zone/
-|   `-- format_images.py
+|   |-- format_images.py
+|   |-- format_audio.py
+|   `-- format_text.py
 |
 |-- trusted_zone/
 |
@@ -163,7 +165,8 @@ ecosentinel-adsdb/
 |   `-- initialize_storage.py
 |
 |-- tests/
-|   `-- test_audio_acquisition.py
+|   |-- test_audio_acquisition.py
+|   `-- test_formatted_regressions.py
 |
 |-- docs/
 |   |-- landing_zone_documentation.md
@@ -495,6 +498,36 @@ Validated image state: **100 raw images in Persistent Landing and 100 JPEG/RGB i
 
 Full specifications, trade-offs and MPO policy: [`docs/formatted_zone_documentation.md`](docs/formatted_zone_documentation.md).
 
+### 12.1 Audio and text formatters
+
+The independent scripts standardize audio to FLAC/PCM16 and text to plain UTF-8/LF/NFC. Both use Persistent Landing inputs and `formatted-zone` outputs, preserving source lineage and raw objects.
+
+| Modality | Input examples | Canonical output | Important limitation |
+|---|---|---|---|
+| Audio | MP3, WAV, FLAC, OGG/Opus, AAC/M4A and other ffmpeg-readable encodings | `.flac`, 16-bit PCM | Encoding to PCM16 may quantize higher-precision source samples; existing lossy artifacts are not restored |
+| Text | `.txt`, `.html`, `.md`, `.json`, `.jsonl`, `.pdf`, `.docx`, `.odt` | `.txt`, UTF-8, LF, NFC | Markup/layout may be lost; image-only PDFs need OCR |
+
+The text JSON parser uses deterministic priority keys first and, when these are absent, the longest nonempty string as a fallback. It does not perform semantic quality control.
+
+```bash
+python formatted_zone/format_audio.py --dry-run --max-items 1
+python formatted_zone/format_text.py --dry-run --max-items 1
+
+# Run one sample per modality after Persistent Landing ingestion
+python formatted_zone/format_audio.py --max-items 1
+python formatted_zone/format_text.py --max-items 1
+
+# Full processing only after verifying a sample
+python formatted_zone/format_audio.py
+python formatted_zone/format_text.py
+```
+
+Both scripts support `--species` and explicit `--force`. By default, a previously formatted destination is skipped only if its lineage, canonical policy, MIME type and nonempty size are compatible. Conflicting output metadata causes an error rather than a silent overwrite.
+
+**Validation status:** code is implemented and 12 offline regression tests passed during review; full real SILO/MinIO batch conversion remains pending. The contributor also reported 36 earlier tests, not independently rerun here.
+
+See [`docs/formatted_zone_documentation.md`](docs/formatted_zone_documentation.md) for the detailed format contracts and design trade-offs.
+
 ---
 
 # 13. Local Setup
@@ -601,7 +634,7 @@ Install dependencies:
 python -m pip install -r requirements.txt
 ```
 
-Image formatting uses Pillow; the project dependency is pinned to the supported major-version range `Pillow>=10,<13` in `requirements.txt`.
+Image formatting requires `Pillow>=10,<13`. Audio and text formatting additionally require `soundfile`, `imageio-ffmpeg` and `pypdf`; verify that all of these are present in `requirements.txt` before running the new scripts. `charset-normalizer` is an optional text decoding helper usually supplied by `requests`.
 
 ---
 
@@ -762,7 +795,7 @@ Architectural decisions and their justification:
 docs/decision_log.md
 ```
 
-These documents explain Landing ingestion state, object naming and traceability, UTC/SHA-256 choices, the Formatted image contract (including MPO and EXIF), alternatives, operational limitations and team handoff rules.
+These documents explain Landing ingestion state, object naming and traceability, UTC/SHA-256 choices, Formatted conversion contracts for images/audio/text (including MPO, FLAC precision and JSON extraction), alternatives, operational limitations and team handoff rules.
 
 ---
 
@@ -816,8 +849,8 @@ docker.exe compose up -d
 | Audio acquisition | Script integrated — end-to-end validation pending |
 | Text acquisition | Script integrated — end-to-end validation pending |
 | Formatted images | Complete — 100 JPEG/RGB objects validated |
-| Formatted audio | Pending |
-| Formatted text | Pending |
+| Formatted audio | Implemented; offline regression tests passed; full MinIO validation pending |
+| Formatted text | Implemented; offline regression tests passed; full MinIO validation pending |
 | Trusted Zone | Pending |
 | Exploitation Zone | Pending |
 | Multimodal tasks | Pending |
@@ -832,7 +865,7 @@ The common Landing flow, image acquisition, and Formatted image conversion are i
 Next work can proceed in parallel:
 
 - Validate and, if needed, complete the integrated audio and text acquisition scripts against the common raw-data contract; their complete datasets have not yet been verified here.
-- Implement modality-specific `format_audio.py` and `format_text.py` once their actual source encodings are known.
+- Run real SILO/MinIO smoke tests and then full-batch validation for the implemented `format_audio.py` and `format_text.py` scripts.
 - Start designing image Trusted Zone quality checks and profiling, with duplicate detection separated from ingestion idempotence.
 
 Do not modify shared Landing scripts for modality-specific formatting operations. Record important decisions in `docs/decision_log.md`.
