@@ -1,0 +1,20 @@
+# EcoSentinel Trusted Images policy, v1.
+# Operational project choices; they are not universal scientific cut-offs.
+version: "1"
+images:
+  max_file_mb: 20
+  max_megapixels: 40
+  min_width: 128
+  min_height: 128
+  aspect_ratio_warning_min: 0.2
+  aspect_ratio_warning_max: 5.0
+  dark_mean_threshold: 45
+  blur_laplacian_threshold: 60
+  monochrome_chroma_threshold: 9
+  phash_max_hamming: 6
+  duplicate_ssim_min: 0.975
+  duplicate_color_distance_max: 0.08
+  watermark_advanced_max_items: 1000
+  watermark_lightweight_signal_threshold: 0.12
+  # Watermarks are measured, not used as an automatic exclusion criterion.
+  watermark_reject: false

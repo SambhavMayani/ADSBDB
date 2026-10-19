@@ -1,0 +1,12 @@
+# Deliberately high ingestion safety limits, independent of Trusted quality caps.
+# Extension checks are supplemented by magic-byte / container checks.
+version: "1"
+max_filename_length: 240
+max_image_mb: 200
+max_image_megapixels: 80
+max_audio_mb: 1024
+max_text_mb: 250
+# Applies only to DOCX/ODT compressed containers.
+max_archive_uncompressed_mb: 1000
+max_archive_entries: 10000
+max_archive_ratio: 200

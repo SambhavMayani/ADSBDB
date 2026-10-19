@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EcoSentinel · Trusted Images Quality Report</title>
+<style>
+:root {font-family:Inter,Segoe UI,Arial,sans-serif;color:#18262b;background:#f2f6f5}
+body {max-width:1140px;margin:0 auto;padding:36px 24px 60px}
+h1,h2 {letter-spacing:-.035em} h1 {font-size:2.2rem;margin-bottom:0} h2 {margin-top:36px}
+.subtitle {color:#61757b;margin-top:8px} .cards {display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:22px 0}
+.card {background:white;border:1px solid #dce6e4;border-radius:12px;padding:20px}
+.metric {font-size:2rem;font-weight:700;margin-top:8px} .label {font-size:.8rem;color:#657678;text-transform:uppercase;letter-spacing:.05em}
+.chart-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(390px,1fr));gap:16px}
+figure {margin:0;background:white;border:1px solid #dce6e4;border-radius:12px;padding:12px}
+figure img {width:100%;height:auto} table {width:100%;border-collapse:collapse;background:white;border-radius:10px;overflow:hidden}
+th,td {padding:10px 12px;border-bottom:1px solid #e7efec;text-align:left} th {background:#e8f0ed}
+.note {border-left:3px solid #658d8b;padding:12px 16px;background:#e8eeeb;line-height:1.5}
+@media print {body{max-width:100%;padding:8px;background:white} figure {break-inside:avoid} .chart-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<h1>EcoSentinel · Image Quality</h1>
+<p class="subtitle">Trusted Zone • Policy {{ summary.policy_version }} • Generated {{ date }}</p>
+<div class="cards">
+ <div class="card"><div class="label">Evaluated</div><div class="metric">{{ summary.images_analyzed }}</div></div>
+ <div class="card"><div class="label">Accepted</div><div class="metric">{{ summary.accepted }}</div></div>
+ <div class="card"><div class="label">Rejected</div><div class="metric">{{ summary.rejected }}</div></div>
+ <div class="card"><div class="label">Acceptance rate</div><div class="metric">{{ summary.acceptance_rate_pct }}%</div></div>
+ <div class="card"><div class="label">Excluded file size</div><div class="metric">{{ summary.excluded_measured_mb }} MB</div></div>
+ <div class="card"><div class="label">Provenance coverage</div><div class="metric">{{ summary.provenance_completeness_pct }}%</div></div>
+ <div class="card"><div class="label">Mean processing capacity</div><div class="metric">{{ summary.measured_images_per_second if summary.measured_images_per_second is not none else 'n/a' }}</div></div>
+</div>
+<p class="note"><strong>Interpretation.</strong> Exclusion means the image is not published in Trusted; originals remain available in earlier zones. Low light, monochrome, blur, extreme ratio and suspected watermarks are retained as signals, not automatic rejections. Processing times are per-image measurements, not total pipeline time.</p>
+<h2>Before / after, per species</h2>
+<p class="note">Species distribution shift (Jensen–Shannon divergence): <strong>{{ summary.species_distribution_jsd_bits }} bits</strong>. Zero means unchanged representation; increasing values indicate stronger shifts after cleaning.</p>
+<figure><img src="species_before_after.png" alt="Formatted versus Trusted images per species"></figure>
+<h2>Before / after, per source</h2>
+<p class="note">Source distribution shift (Jensen–Shannon divergence): <strong>{{ summary.source_distribution_jsd_bits }} bits</strong>.</p>
+<figure><img src="sources_before_after.png" alt="Formatted versus Trusted images per data source"></figure>
+<h2>Distributions</h2>
+<div class="chart-grid">
+{% for filename in ['resolution.png','file_size.png','brightness.png','aspect_ratio.png','sharpness.png'] %}
+<figure><img src="{{ filename }}" alt="Distribution plot"></figure>
+{% endfor %}
+</div>
+<h2>Rejection reasons</h2>
+<table><thead><tr><th>Reason</th><th>Files</th></tr></thead><tbody>
+{% for reason, count in summary.reasons.items() %}<tr><td>{{ reason }}</td><td>{{ count }}</td></tr>{% else %}<tr><td>No rejections</td><td>0</td></tr>{% endfor %}
+</tbody></table>
+<h2>Non-destructive quality flags</h2>
+<table><thead><tr><th>Flag</th><th>Images</th></tr></thead><tbody>
+{% for flag, count in summary.quality_flags.items() %}<tr><td>{{ flag }}</td><td>{{ count }}</td></tr>{% else %}<tr><td>No flags recorded</td><td>0</td></tr>{% endfor %}
+</tbody></table>
+<h2>Watermark detection coverage</h2>
+<table><thead><tr><th>Method</th><th>Images</th></tr></thead><tbody>
+{% for method, count in summary.watermark_methods.items() %}<tr><td>{{ method }}</td><td>{{ count }}</td></tr>{% endfor %}
+</tbody></table>
+<p class="note">A detected text or edge pattern is only a possible watermark, not conclusive evidence. “No indicator” is not proof of absence. OCR availability and batch size determine the assessment method.</p>
+<h2>Files</h2>
+<p>Use the accompanying <code>metrics.csv</code> for object-level metadata, quality signals, duplication links and audit details, and <code>summary.json</code> for machine-readable aggregates.</p>
+</body></html>

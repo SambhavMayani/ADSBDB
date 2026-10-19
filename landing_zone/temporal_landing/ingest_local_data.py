@@ -6,6 +6,7 @@ import boto3
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
 import mimetypes
+from security_gate import inspect_file, read_config, record_incident
 # ---------------------------------------------------------
 # Project paths
 # ---------------------------------------------------------
@@ -350,7 +351,9 @@ def ingest_dataset(max_uploads=None):
     """
 
     files = discover_local_files()
+    security_policy = read_config()
 
+    blocked_count = 0
     uploaded_count = 0
     temporal_skipped_count = 0
     completed_skipped_count = 0
@@ -368,6 +371,14 @@ def ingest_dataset(max_uploads=None):
             break
 
         try:
+            verdict = inspect_file(
+                file_info["path"], file_info["modality"], security_policy
+            )
+            if not verdict.allowed:
+                record_incident(file_info["path"], file_info["modality"], verdict)
+                blocked_count += 1
+                continue
+
             object_key = build_object_key(
                 file_info
             )
@@ -420,9 +431,11 @@ def ingest_dataset(max_uploads=None):
         "Skipped as completed:  "
         f"{completed_skipped_count}"
     )
+    print(f"Blocked by security:   {blocked_count}")
     print(f"Errors:                {error_count}")
     print("=" * 60)
+    return blocked_count + error_count
 
 
 if __name__ == "__main__":
-    ingest_dataset()
+    raise SystemExit(1 if ingest_dataset() else 0)

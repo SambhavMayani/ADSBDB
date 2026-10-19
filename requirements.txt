@@ -1,8 +1,30 @@
+# Core and object storage
 boto3==1.43.107
 python-dotenv==1.2.4
 PyYAML==6.0.3
 requests==2.34.2
+
+# Image processing
 Pillow>=10,<13
+
+# Audio processing
 soundfile>=0.12
 imageio-ffmpeg>=0.5
+
+# Text processing
 pypdf>=5
+
+# Trusted Zone: image quality and deduplication
+numpy>=1.26,<3
+opencv-python-headless>=4.8,<5
+scikit-image>=0.23,<1
+
+# Quality reports and visualizations
+matplotlib>=3.8,<4
+jinja2>=3.1,<4
+
+# Watermark detection
+pytesseract>=0.3.13,<1
+
+# Automated testing
+pytest>=8,<10
