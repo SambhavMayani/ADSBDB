@@ -1,0 +1,13 @@
+# Trusted Audio v1: preserve every decoded sample, channel and time interval.
+# Warning thresholds are operational observations, NOT scientific exclusion rules.
+version: "1"
+audio:
+  max_file_mb: 200
+  min_duration_seconds: 0.01
+  short_duration_warning_seconds: 0.5
+  clipping_amplitude_threshold: 0.99
+  clipping_pct_warning: 1.0
+  low_rms_dbfs_warning: -55
+  low_energy_dbfs_threshold: -50
+  low_energy_window_pct_warning: 80
+  dc_offset_warning: 0.02

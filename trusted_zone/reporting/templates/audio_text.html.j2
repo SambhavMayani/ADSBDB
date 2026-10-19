@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EcoSentinel · Trusted {{ summary.modality|title }} Quality</title>
+<style>
+:root{font-family:Inter,Segoe UI,Arial,sans-serif;background:#f4f7f8;color:#192b34}
+body{max-width:1120px;margin:auto;padding:28px 22px 60px}h1{margin-bottom:2px;letter-spacing:-.035em}
+h2{margin-top:38px}p{line-height:1.5}.sub{color:#526a75}.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;margin:22px 0}
+.tile,figure,table{background:white;border:1px solid #d9e3e7;border-radius:10px}.tile{padding:16px}
+.big{font-size:1.9rem;font-weight:700;margin-top:6px}.cap{font-size:.79rem;text-transform:uppercase;color:#546c75}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:15px}figure{margin:0;padding:10px}
+figure img{width:100%;height:auto}table{border-collapse:collapse;width:100%}th,td{padding:10px;text-align:left;border-bottom:1px solid #e5ecef}th{background:#eaf1f4}
+.note{padding:12px 16px;border-left:3px solid #557d8f;background:#e9f0f2}
+@media print{body{background:white;padding:8px}.charts{grid-template-columns:1fr 1fr}figure{break-inside:avoid}}
+</style>
+</head>
+<body>
+<h1>EcoSentinel · Trusted {{ summary.modality|title }}</h1>
+<p class="sub">Policy v{{ summary.policy_version }} · {{ date }}</p>
+<div class="tiles">
+<div class="tile"><div class="cap">Evaluated</div><div class="big">{{summary.analyzed}}</div></div>
+<div class="tile"><div class="cap">Accepted</div><div class="big">{{summary.accepted}}</div></div>
+<div class="tile"><div class="cap">Rejected</div><div class="big">{{summary.rejected}}</div></div>
+<div class="tile"><div class="cap">Errors</div><div class="big">{{summary.errors}}</div></div>
+<div class="tile"><div class="cap">Acceptance rate</div><div class="big">{{summary.acceptance_rate_pct}}%</div></div>
+<div class="tile"><div class="cap">Provenance coverage</div><div class="big">{{summary.provenance_coverage_pct}}%</div></div>
+</div>
+<p class="note"><b>Interpretation:</b> This Trusted policy prioritizes preservation of ecological information. Quality flags are warnings, not proof of defects. Count differences come from validated exclusions, not compulsory filtering or cosmetic edits. Formatted and Persistent objects remain accessible. The report describes all quality manifests found in MinIO, which may include records from earlier runs.</p>
+<h2>Coverage — Formatted vs Trusted</h2>
+<figure><img src="species_before_after.png" alt="Counts per species"></figure>
+<figure><img src="sources_before_after.png" alt="Counts per source"></figure>
+<h2>Quality distributions</h2>
+<div class="charts">
+{% for feature in features %}<figure><img src="{{feature[3]}}" alt="{{feature[1]}}"></figure>{% endfor %}
+</div>
+<h2>Descriptive statistics</h2>
+<table><thead><tr><th>Metric</th><th>Count</th><th>Median</th><th>P10</th><th>P90</th><th>Min</th><th>Max</th></tr></thead><tbody>
+{% for name, m in summary.measurements.items() %}
+<tr><td>{{name}}</td><td>{{m.count}}</td><td>{{m.median if m.count else 'n/a'}}</td><td>{{m.p10 if m.count else 'n/a'}}</td><td>{{m.p90 if m.count else 'n/a'}}</td><td>{{m.min if m.count else 'n/a'}}</td><td>{{m.max if m.count else 'n/a'}}</td></tr>
+{% endfor %}</tbody></table>
+{% if summary.modality == 'audio' %}
+<h2>Sample rate and channels</h2>
+<p>Sample rates: {{summary.sample_rate_counts}}. Channels: {{summary.channel_counts}}.</p>
+<p class="note">RMS and peak values use dBFS, not LUFS. A low-energy window is a 50 ms interval below the configured RMS threshold. These metrics do not estimate a ground-truth SNR or confirm an animal call. Audio samples, duration, channel layout and sample rate are not modified.</p>
+{% else %}
+<h2>Privacy-related indicators</h2>
+<p>Potential email matches: {{summary.possible_emails_total}}. Potential IPv4 patterns: {{summary.possible_ipv4_total}}.</p>
+<p class="note">Pattern matches may be false positives. No matched personal data appears in this report. No automatic PII redaction, language exclusion, stemming, stopword removal or semantic rewrite is performed. Near-duplicate candidates require review.</p>
+{% endif %}
+<h2>Rejection reasons</h2>
+<table><thead><tr><th>Reason</th><th>Count</th></tr></thead><tbody>
+{% for reason, count in summary.reasons.items() %}<tr><td>{{reason}}</td><td>{{count}}</td></tr>{% else %}<tr><td>No rejections</td><td>0</td></tr>{% endfor %}
+</tbody></table>
+<h2>Non-destructive warning flags</h2>
+<table><thead><tr><th>Flag</th><th>Count</th></tr></thead><tbody>
+{% for flag, count in summary.quality_flags.items() %}<tr><td>{{flag}}</td><td>{{count}}</td></tr>{% else %}<tr><td>No warning flags</td><td>0</td></tr>{% endfor %}
+</tbody></table>
+<p>Supporting artifacts: <code>metrics.csv</code> (object-level observations) and <code>summary.json</code> (aggregated metrics). PNG figures are stored beside this HTML and use relative links.</p>
+<p class="sub">{{summary.caveat}}</p>
+</body>
+</html>
