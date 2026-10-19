@@ -1,0 +1,10 @@
+# Trusted Text v1: keep text structure, language, capitalization and punctuation.
+# Similarity scores and privacy patterns are REVIEW FLAGS, not automatic edits.
+version: "1"
+text:
+  max_file_mb: 4
+  short_document_warning_words: 20
+  alphanumeric_ratio_warning: 0.45
+  near_duplicate_shingle_words: 5
+  near_duplicate_min_shingles: 5
+  near_duplicate_jaccard_warning: 0.90

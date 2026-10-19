@@ -1,959 +1,209 @@
-# EcoSentinel — Decision Log
+# EcoSentinel — Registro de decisiones arquitectónicas
 
-This file records the main architectural decisions already taken in the project. It is intended to prevent loss of context between team members and to provide material for the final report and presentation.
+**Edición consolidada · 19-10-2026.** Este archivo conserva los identificadores **D01–D52** del registro previo y los actualiza a un estado coherente con la implementación validada. Las decisiones **D53–D62** recogen Security Gate y Trusted Images/Audio/Text. Se han reducido explicaciones repetidas: el *cómo se ejecuta* pertenece a los documentos de [Landing](landing_zone_documentation.md), [Formatted](formatted_zone_documentation.md) y [Trusted](trusted_zone_documentation.md).
 
----
+**Cómo leerlo:** *decisión* = contrato adoptado; *por qué* = justificación; *coste/límite* = compromiso aceptado. Las decisiones históricas no implican que el comportamiento esté pendiente: el estado presente se resume en [el índice](README.md).
 
-## D01 — Use MinIO as object storage
+## A. Arquitectura y adquisición (D01–D07)
 
-**Decision**
+### D01 — MinIO como almacenamiento de objetos
+**Decisión:** MinIO compatible con S3, desplegado mediante Docker; acceso con `boto3`. **Por qué:** admite binarios multimodales y metadatos S3 con interfaz de inspección. **Coste:** infraestructura Docker y convenciones de claves.
 
-Use a MinIO-compatible S3 object store deployed with Docker for Landing, Formatted and Trusted data.
+### D02 — Adquisición, Temporal y Persistent separados
+**Decisión:** scripts de adquisición → `ingest_local_data.py` → `process_to_persistent.py`. **Por qué:** responsabilidades claras, testabilidad y reutilización entre modalidades. **Alternativa descartada:** un script monolítico.
 
-**Why**
+### D03 — Originales intactos en Landing
+**Decisión:** Landing conserva los bytes captados, sin convertir JPEG/PNG/WEBP, audio o documentos. **Por qué:** reproducibilidad. La conversión pertenece a Formatted y el análisis de calidad a Trusted.
 
-- appropriate for unstructured multimodal data;
-- programmatic S3-compatible access through `boto3`;
-- supports object metadata;
-- easy visual inspection through the UI;
-- aligns with the project architecture.
+### D04 — Jerarquía raw como contrato explícito
+**Decisión:** `data/raw_dataset/<modality>/<species_id>/<file>`. **Por qué:** simplicidad, inspección manual y determinismo; aceptado para la escala universitaria. **Coste:** el ingestor depende de esta estructura. A gran escala usaríamos catálogo independiente.
 
-**Trade-off**
+### D05 — Metadatos de adquisición junto al activo
+**Decisión:** `_metadata.json` en cada carpeta de especie; campos mínimos `local_filename`, `source_name`, `species_id`. **Por qué:** recuperar origen y procedencia incluso ante interrupciones.
 
-Requires Docker infrastructure and explicit object-key conventions.
+### D06 — No ingerir origen desconocido
+**Decisión:** rechazar `source_name` vacío o `unknown`. **Por qué:** no promocionar datos sin trazabilidad. **Antecedente:** objetos temporales antiguos de `bubo_bubo` se corrigieron reingresando los activos con metadatos válidos.
 
----
+### D07 — SHA-256 para identidad técnica raw
+**Decisión:** fingerprint sobre bytes captados. **Por qué:** checksum y trazabilidad; **no** implica igualdad visual/acústica/semántica ni reemplaza la deduplicación de calidad.
 
-## D02 — Keep acquisition, Temporal and Persistent as separate scripts
+## B. Idempotencia y persistencia de Landing (D08–D20)
 
-**Decision**
+### D08 — Clave de Temporal abreviada
+**Decisión:** `temporal_landing/<hash16>__<filename>`, con los 16 primeros hex de SHA-256 raw. **Por qué:** distinguir combinaciones de bytes y nombre. **Límite:** riesgo de colisión teórico, despreciable al tamaño actual.
 
-Use separate responsibilities:
+### D09 — Diferenciar idempotencia de deduplicación
+**Decisión:** Landing evita repetir una ingestión **idéntica**; Trusted evalúa duplicados exactos o similares. **Estado actualizado:** los tres validadores Trusted implementan las reglas que les corresponden; no es una función pendiente de Landing.
 
-```text
-data acquisition
-→ ingest_local_data.py
-→ process_to_persistent.py
-```
+### D10 — No buscar en Persistent desde el ingestor
+**Decisión:** no listar/escanear Persistent por cada archivo para decidir reingesta. **Por qué:** desacoplar capas, evitar coste por listados y dependencias del nombre Persistent.
 
-**Why**
+### D11 — No usar JSON local como registro autoritativo
+**Decisión:** evitar estado de ingestión exclusivo de un PC. **Por qué:** los miembros del equipo y procesos necesitan el mismo estado compartido.
 
-Each script has one clear responsibility and can evolve independently.
+### D12 — Registro de finalización en MinIO
+**Decisión:** `_control/completed/<control_id>.json` por ingestión completada. **Por qué:** lookup determinista, compartido y tolerante a reintentos. **Regla:** verificar primero el objeto Persistent.
 
-**Rejected alternative**
+### D13 — Control ID usa SHA-256 completo
+**Decisión:** `control_id = SHA256(clave_temporal_completa)` (64 hex). **Por qué:** identidad interna sin necesidad de abreviar.
 
-One large script performing download + upload + persistence.
+### D14 — La identidad del control incluye nombre y bytes
+**Decisión:** calcular el marcador sobre la clave Temporal entera. **Consecuencia:** mismos bytes con otro nombre pueden entrar y serán evaluados por Trusted; mismo nombre y bytes se omite en reejecución.
 
-**Reason rejected**
+### D15 — Organización de Persistent
+**Decisión:** `persistent_landing/<modality>/<species_id>/`. **Por qué:** particiones estables e interpretables por el resto del pipeline.
 
-Harder to test, reuse and maintain across modalities.
+### D16 — Nombre Persistent trazable
+**Decisión:** `<source>$<species>$<timestamp>$<hash>.<ext>`. **Por qué:** origen, especie, momento y hash visibles en la clave.
 
----
+### D17 — Timestamp de ingestión original
+**Decisión:** usar `LastModified` de Temporal, expresado en UTC, no la fecha posterior del copy. **Por qué:** evitar confundir copia con captación.
 
-## D03 — Preserve raw source files in Landing
+### D18 — Eliminar Temporal solo tras verificar Persistencia y marcador
+**Decisión:** copiar → verificar Persistent → registrar completado → verificar marcador → borrar Temporal. **Por qué:** evitar pérdida de datos por fallos parciales.
 
-**Decision**
+### D19 — Backfill programático de objetos históricos
+**Decisión:** `process_to_persistent.py --backfill-control`. **Por qué:** un activo preexistía al registro; se corrigió sin manipular objetos manualmente.
 
-Do not convert JPEG/PNG/WEBP, audio formats or text representations during Landing acquisition.
+### D20 — UTC en metadatos y operaciones
+**Decisión:** timestamps UTC. **Por qué:** evitar ambigüedades entre zonas horarias y cambios de horario.
 
-**Why**
+## C. Calidad de adquisición y coordinación (D21–D28)
 
-Landing represents the raw reproducible source state.
+### D21 — Guardar metadatos tras cada adquisición Wikimedia
+**Decisión:** actualizar `_metadata.json` después de cada imagen válida. **Por qué:** un corte a mitad del lote no deja fotografías sin procedencia.
 
-**Where conversion belongs**
+### D22 — Retries y separación de peticiones Wikimedia
+**Decisión:** manejar fallos HTTP/rate limits con reintentos y pausas. **Por qué:** robustez frente a errores transitorios de la API.
 
-Formatted Zone.
+### D23 — Solo filtros técnicos en adquisición Wikimedia
+**Decisión:** MIME, resolución mínima y tamaño máximo. **Por qué:** no adelantar Trusted a Landing. **Límite:** una categoría Wikimedia no prueba calidad semántica del contenido.
 
----
+### D24 — Nombres locales compatibles con Windows
+**Decisión:** sanear caracteres y limitar la longitud de nombre (aprox. 140 caracteres en adquisición de imágenes). **Por qué:** se observaron errores con rutas largas en Windows.
 
-## D04 — Use the local folder hierarchy as an explicit ingestion contract
+### D25 — No crear carpetas Temporal artificiales
+**Decisión:** permitir que el prefijo `temporal_landing/` desaparezca en la UI cuando está vacío. **Por qué:** MinIO/S3 usa prefijos, no carpetas físicas.
 
-**Decision**
+### D26 — Temporal y Persistent son scripts comunes
+**Decisión:** ambos manejan `images`, `audio` y `text` con metadatos mínimos genéricos; la adquisición/formato/calidad específicos son por modalidad. **Estado:** contrato común usado con las tres modalidades.
 
-Use:
+### D27 — Proteger la interfaz común de Landing
+**Decisión:** no modificar scripts compartidos por necesidades exclusivas de una modalidad. **Excepción justificada e implementada:** Security Gate opera para **todas** las modalidades antes de la ingestión; se probó la regresión incremental.
 
-```text
-data/raw_dataset/<modality>/<species_id>/<file>
-```
+### D28 — Repartir documentación por propósito
+**Decisión:** docstrings para detalles de función; un documento por zona para diseño/operación; registro de decisiones para razones/pros y contras; memoria final para selección de evidencia. **Estado:** documentación consolidada con estas cuatro piezas e índice.
 
-**Why**
+## D. Formatted Images (D29–D40)
 
-- simple;
-- readable;
-- deterministic;
-- sufficient for the project scale;
-- accepted by the project supervisor.
+### D29 — JPEG como representación canónica de imágenes
+**Decisión:** `.jpg` para todas las imágenes formateadas. **Por qué:** amplia interoperabilidad y peso manejable. **Coste:** JPEG es con pérdida.
 
-**Trade-off**
+### D30 — Imagen RGB de tres canales
+**Decisión:** convertir a RGB. **Por qué:** entrada uniforme para etapas posteriores. **Coste:** no se preservan canales alpha o paleta idénticos.
 
-The local ingestor is not fully independent from folder layout.
+### D31 — Transparencia a fondo blanco
+**Decisión:** componer pixels transparentes sobre blanco antes de JPEG. **Por qué:** JPEG carece de alpha. **Coste:** puede cambiar la apariencia de los píxeles originales.
 
-**Future production alternative**
+### D32 — Codificación JPEG con `quality=95`
+**Decisión:** fijar el parámetro de encoder a 95. **Por qué:** favorecer fidelidad en fotografías de fauna. **Advertencia:** no es una puntuación objetiva de calidad ni hace reversible la conversión.
 
-Global manifest/catalog carrying modality and taxonomy independently from physical paths.
+### D33 — Preservar dimensiones y no corregir orientación de píxeles
+**Decisión:** sin resize/crop, sin rotación EXIF materializada; conservar EXIF cuando existe. **Por qué:** Formatted homogeneiza encoding, no optimiza por modelo. **Límite:** distintos visores pueden interpretar EXIF de forma diferente.
 
----
+### D34 — MPO: exportar primer frame
+**Decisión:** frame 0 de archivos MPO aunque terminen en `.jpg`, uno por objeto Persistent. **Evidencia:** 4 MPO de `aquila_chrysaetos` con 2 frames y 2 de `canis_lupus` con 3, por lo que 8 frames secundarios no pasan a Formatted. **Mitigación:** originales completos en Persistent.
 
-## D05 — Keep acquisition metadata beside the raw assets
+### D35 — Conservar identidad fuente en el nombre formateado
+**Decisión:** `formatted-zone/images/<species>/<persistent_stem>.jpg`. **Nota:** el hash del nombre describe bytes raw, no JPEG recodificado.
 
-**Decision**
+### D36 — Propagar trazabilidad y versión de política
+**Decisión:** mantener metadatos Persistent y añadir `source_persistent_key_encoded`, `original_format`, `formatted_format`, `color_mode`, `jpeg_quality`, `format_version`, `formatted_at`. **Coste:** metadatos de objeto S3 no sustituyen un catálogo completo.
 
-Each species acquisition directory contains `_metadata.json`.
+### D37 — Persistent no se modifica al formatear
+**Decisión:** convertir en un bucket distinto y preservar el original. **Por qué:** reproducibilidad y investigación de errores; **coste:** más almacenamiento.
 
-**Why**
+### D38 — Claves deterministas y reejecución compatible
+**Decisión:** omitir destino solo cuando sus metadatos y contrato son coherentes; conflictos → error sin overwrite silencioso. **Por qué:** preservar integridad y procedencia; una política nueva requiere regeneración deliberada.
 
-Provides provenance close to the raw source assets and lets the common ingestor recover `source_name`.
+### D39 — Un formateador por modalidad
+**Decisión:** `format_images.py`, `format_audio.py` y `format_text.py` independientes. **Estado actualizado:** los tres están implementados, sus objetos reales están en Formatted y se han validado aguas abajo con Trusted (100/34/64).
 
-**Required common fields**
+### D40 — Validar todos los JPEG formateados
+**Decisión:** comprobar extensión/encoding/mode RGB, metadatos y cuentas. **Evidencia:** 100/100 imágenes RGB JPEG finales y cero fallos tras resolver MPO; esto **no** demuestra calidad semántica.
 
-```text
-local_filename
-source_name
-species_id
-```
+## E. Formatted Audio y Text (D41–D52)
 
----
+### D41 — FLAC/PCM16 para audio
+**Decisión:** usar `.flac` con PCM16 incluso desde archivos FLAC previos. **Por qué:** representación homogénea con codec sin pérdidas sobre las muestras resultantes. **Coste:** cuantización de originales de mayor precisión y pérdidas ya presentes en formatos fuente con compresión con pérdida.
 
-## D06 — Reject unknown provenance
+### D42 — No forzar canales ni sample rate
+**Decisión:** mantener frecuencia/canales disponibles. **Por qué:** son transformaciones dependientes de las necesidades futuras de modelos. **Coste:** audio formateado conserva heterogeneidad técnica que Exploitation deberá gestionar.
 
-**Decision**
+### D43 — Tomar primer stream de audio
+**Decisión:** exportar una pista por objeto raw; omitir carátulas, capítulos y etiquetas internas del contenedor. **Por qué:** correspondencia 1:1 predecible. **Coste:** extras solo disponibles en Persistent.
 
-Do not ingest assets whose `source_name` is missing or `unknown`.
+### D44 — Decodificación ffmpeg con fallback libsndfile
+**Decisión:** usar ffmpeg cuando está disponible y `soundfile` para formatos compatibles. **Por qué:** amplitud de codecs; **límite:** extensión reconocida no garantiza decodificación exitosa.
 
-**Why**
+### D45 — TXT canónico UTF-8/LF/NFC
+**Decisión:** sin BOM, sin controles prohibidos, con un salto de línea final. **Por qué:** consistencia de consumo. **Coste:** cambian bytes y puede perderse estructura de origen; Persistent conserva raw.
 
-Once raw assets move farther into the pipeline, missing provenance makes organization and traceability unreliable.
+### D46 — Extracción real de formatos textuales heterogéneos
+**Decisión:** admitir texto, Markdown, HTML/XML, JSON/JSONL, PDF con capa textual, DOCX y ODT. **Por qué:** cubrir representaciones de origen diversas. **Coste:** formatos ricos se aplanan; PDFs escaneados no disponen de OCR en el formateador.
 
-**Historical note**
+### D47 — JSON: claves prioritarias y fallback heurístico
+**Decisión:** buscar campos textuales por BFS/prioridad y, si faltan, elegir cadena no vacía más larga; arrays/JSONL por registro. **Coste:** la cadena larga no siempre es contenido semántico correcto.
 
-Several Bubo bubo Temporal objects were created before the acquisition metadata was available. They were removed from Temporal and re-ingested after metadata was corrected.
+### D48 — Formatted incremental con conflictos explícitos
+**Decisión:** verificar clave fuente, representación, versión, MIME y tamaño antes de omitir; reportar conflictos, `--force` solo para sustitución intencionada. **Por qué:** impedir sobrescrituras opacas.
 
----
+### D49 — Límite `--max-items` por conversiones nuevas
+**Decisión:** tanto en real como en dry-run cuenta cambios nuevos, no archivos ya compatibles. **Por qué:** vista previa representativa del trabajo pendiente.
 
-## D07 — Use SHA-256 as a technical checksum, not as Trusted deduplication
+### D50 — Alias de metadatos compartidos
+**Decisión:** conservar nombres anteriores específicos de audio/texto y añadir `original_format`, `formatted_format`, `format_version`, `formatted_at`. **Por qué:** facilitar integración; **coste:** algunos campos duplicados y objetos históricos sin todos los alias.
 
-**Decision**
+### D51 — Rechazo de procedencia inválida en Formatted
+**Decisión:** exigir modalidad, especie, `source_name`, `asset_hash` y coherencia de clave Persistent; cerrar streams S3. **Por qué:** evitar activos mal clasificados y liberar recursos.
 
-Compute SHA-256 over raw file bytes.
+### D52 — Distinguir tests offline de verificación end-to-end
+**Decisión:** no inferir publicación completa a partir de pruebas con S3 simulado. **Antecedente:** 12 pruebas focalizadas offline durante revisión inicial de Audio/Text, y otras pruebas comunicadas por colaborador. **Estado actualizado:** las conversiones reales (34 FLAC y 64 TXT) se han utilizado y aceptado en Trusted; ya no está pendiente el procesamiento completo en MinIO para estos activos. Esta evidencia no permite asegurar calidad semántica o perfección de fuentes.
 
-**Why**
+## F. Security Gate y Trusted (D53–D62) — nuevas decisiones
 
-- deterministic content fingerprint;
-- traceability;
-- useful technical identity.
+### D53 — Validación de seguridad antes de Temporal
+**Decisión:** inspeccionar cada activo local con allowlist, magic bytes y límites preventivos por formato, antes de subirlo. **Por qué:** separar riesgos de entrada de criterios posteriores de calidad. **Coste:** trabajo extra incluso si la ingestión se completó; detección basada en firmas no equivale a antivirus. Incidentes JSONL y salida distinta de cero ante bloqueos.
 
-**Important distinction**
+### D54 — No modificar automáticamente imágenes aceptadas
+**Decisión:** JPEG de Formatted se copia intacto a Trusted tras validaciones. **Por qué:** brillo, movimiento, noche y monocromo pueden ser características ecológicas válidas. **Coste:** se conservan imágenes imperfectas como material de estudio.
 
-SHA-256 compares bytes, not visual or semantic similarity.
+### D55 — Deduplicación de imágenes: SQLite temporal, pHash y confirmación visual
+**Decisión:** SHA exacto; pHash indexado en SQLite **efímero** para candidatos; SSIM y diferencia RGB confirmatoria. Primera clave válida como representante. **Conflicto de especies en imágenes:** registrar y excluir la copia posterior. **Coste:** umbrales heurísticos y coste de recomputación por ejecución.
 
-A recompressed or resized version of the same image can have a different SHA-256.
+### D56 — Watermarks como señal no excluyente
+**Decisión:** OCR avanzado con Tesseract si está disponible o heurística ligera; **sin rechazo automático**. **Por qué:** falsos positivos y ausencia de conjunto etiquetado. **Evidencia de referencia:** 32 señales posibles, sin validación humana de precisión.
 
-**Therefore**
+### D57 — Trusted Audio conservador y sin variantes extra
+**Decisión:** FLAC aceptado idéntico en bytes al Formatted; no cortar, eliminar ruido, mezclar canales, remuestrear ni normalizar. **Por qué:** proteger vocalizaciones débiles y contexto acústico. **Alternativa descartada:** dos copias dentro de Trusted; raw ya existe en Persistent y el FLAC canónico en Formatted. Derivados de escucha corresponderían a presentación.
 
-Quality duplicate detection remains a Trusted Zone responsibility.
+### D58 — Duplicados de audio exactos, conflictos de especie sin eliminación
+**Decisión:** SHA de bytes y huella del PCM decodificado con sample rate/canales; deduplicación estricta **intra-especie**. **Entre especies:** marcar y conservar. **Por qué:** no descartar señales potencialmente mal etiquetadas sin investigación. Clipping y silencio son avisos, no expulsiones.
 
----
+### D59 — Trusted Text conservador
+**Decisión:** UTF-8/LF/NFC y caracteres válidos; sin lowercasing, stopwords, stemming, traducción ni redacción PII automática. **Por qué:** proteger semántica, negaciones, taxonomía y estructura documental. **Coste:** requiere revisión posterior de problemas semánticos o PII compleja.
 
-## D08 — Use `<hash16>__<filename>` in Temporal
+### D60 — Deduplicación textual exacta y similitud para revisión
+**Decisión:** hash del texto normalizado para dedup intra-especie; Jaccard de shingles de 5 palabras ≥0,90 solo identifica candidatos. Igualdad entre especies se marca, no se elimina. **Coste:** búsqueda aproximada O(N²) adecuada para 64 textos pero no para millones.
 
-**Decision**
+### D61 — Manifiestos de calidad e idempotencia verificable
+**Decisión:** JSON en `trusted-zone/_quality/<modality>/<species>/`; datos aceptados bajo prefijo de la modalidad; evitar resubida sin cambio relevante. Audio/Text incluyen fingerprint del YAML en comprobaciones. **Por qué:** auditabilidad, reproducibilidad y seguridad de reejecución. **Coste:** los archivos vuelven a leerse/analizarse; la eliminación upstream aún puede dejar manifiestos obsoletos.
 
-Temporal key:
+### D62 — Informe local por modalidad y por ejecución
+**Decisión:** `reports/trusted_quality/{images,audio,text}/<UTC-run-id>/` con HTML, PNG, CSV, JSON; informes generados ignorados en Git. **Por qué:** Constraint 6, comparación de cobertura/alertas y evidencia histórica sin sobrescribir. **Evidencia:** los 198 activos del corpus actual se aceptaron, todos con procedencia presente, y una segunda ejecución no generó subidas redundantes. **Límite:** Before/After aquí refleja activos evaluados frente a aceptados; no implica una transformación física o semántica del dato.
 
-```text
-temporal_landing/<first-16-SHA256>__<filename>
-```
+## Estado de entrega y trabajos futuros
 
-**Why**
+**Validado ahora:** Landing con Security Gate y registro incremental; Formatted para las tres modalidades; Trusted para las tres modalidades con 100 imágenes, 34 audios y 64 textos aceptados; informes y pruebas de reejecución. **Pendiente:** Exploitation, tareas multimodales, orquestación y memoria final. Como mejoras opcionales quedan el análisis manual de flags watermark y la evolución visual del informe de imágenes; no se presentan como ya implementadas.
 
-The combination distinguishes technical ingestion assets while keeping keys readable.
-
-**Behavior**
-
-```text
-same bytes + same filename
-→ same Temporal identity
-
-same bytes + different filename
-→ different Temporal identity
-
-same filename + different bytes
-→ different Temporal identity
-```
-
-**Trade-off**
-
-Only 16 hexadecimal hash characters are retained. Collision risk is negligible at the project scale but not theoretically zero.
-
----
-
-## D09 — Keep data-quality duplicate handling out of Landing
-
-**Decision**
-
-Landing prevents accidental repeated ingestion of the same technical asset but does not decide whether two dataset assets are quality duplicates.
-
-**Why**
-
-Ingestion idempotence and data-quality deduplication are different responsibilities.
-
-**Trusted will later handle**
-
-- exact duplicate detection;
-- possibly near-duplicate detection;
-- semantic/content quality rules.
-
----
-
-## D10 — Do not use Persistent scanning as the final incremental-ingestion mechanism
-
-**Decision**
-
-Do not make `ingest_local_data.py` list/search Persistent Landing for every asset.
-
-**Alternative considered**
-
-Search Persistent metadata or keys to determine whether an asset had already been processed.
-
-**Why rejected as final design**
-
-- couples ingestion to Persistent organization;
-- requires searching/listing rather than a direct lookup;
-- becomes less attractive as the repository grows;
-- future changes to Persistent organization would affect the ingestor.
-
----
-
-## D11 — Do not use a local JSON ingestion registry
-
-**Decision**
-
-Do not store the authoritative ingestion state only on a developer's machine.
-
-**Why**
-
-The project has multiple contributors. Local state could differ across computers, be deleted, or not match the shared MinIO environment.
-
----
-
-## D12 — Use a MinIO completion registry
-
-**Decision**
-
-Store one deterministic marker per successfully completed Landing ingestion:
-
-```text
-_control/completed/<control_id>.json
-```
-
-**Control ID**
-
-```text
-SHA256(full Temporal key)
-```
-
-**Why**
-
-- direct object lookup;
-- shared team state;
-- independent from Persistent layout;
-- independent from future zones;
-- simple failure recovery;
-- easy to explain and inspect.
-
-**Marker creation rule**
-
-A marker is created only after the Persistent object has been verified.
-
----
-
-## D13 — Use the full SHA-256 for control IDs
-
-**Decision**
-
-The control-marker filename contains a full 64-character hexadecimal SHA-256.
-
-**Why**
-
-It is an internal key where readability is less important than deterministic uniqueness.
-
-**Difference from Temporal**
-
-Temporal uses a shortened hash for readable object naming; `_control` uses the full SHA-256 of the complete Temporal key.
-
----
-
-## D14 — Completion identity is based on the full Temporal key
-
-**Decision**
-
-Hash:
-
-```text
-temporal_landing/<hash16>__<filename>
-```
-
-to generate the control ID.
-
-**Why**
-
-This preserves filename identity in addition to byte identity.
-
-**Result**
-
-A byte-identical asset under a different filename can still enter Landing and later be evaluated by Trusted.
-
----
-
-## D15 — Persistent organization is modality + species
-
-**Decision**
-
-Use:
-
-```text
-persistent_landing/<modality>/<species_id>/
-```
-
-**Why**
-
-These are stable, high-value dimensions for EcoSentinel and simplify downstream discovery.
-
----
-
-## D16 — Persistent filename contains source, species, timestamp and hash
-
-**Decision**
-
-Use:
-
-```text
-<source>$<species>$<timestamp>$<hash>.<extension>
-```
-
-**Why**
-
-- source provenance is visible;
-- species is explicit;
-- ingestion time supports version/history reasoning;
-- hash provides technical traceability;
-- extension preserves the raw file type.
-
----
-
-## D17 — Persistent timestamp is the original Temporal ingestion time
-
-**Decision**
-
-Use the Temporal object's `LastModified` as ingestion time rather than the later copy time.
-
-**Why**
-
-The timestamp should describe when the raw asset entered the Landing pipeline.
-
-**Time zone**
-
-UTC.
-
----
-
-## D18 — Delete Temporal only after Persistent and control are verified
-
-**Decision**
-
-Processing order:
-
-```text
-copy Persistent
-→ verify Persistent
-→ create marker
-→ verify marker
-→ delete Temporal
-```
-
-**Why**
-
-This prioritizes recoverability and avoids losing the transient raw copy before durable state has been confirmed.
-
----
-
-## D19 — Add backfill for pre-registry Persistent objects
-
-**Decision**
-
-Support:
-
-```bash
-python landing_zone/persistent_landing/process_to_persistent.py --backfill-control
-```
-
-**Why**
-
-One object had already reached Persistent before the completion registry was introduced.
-
-**Why not fix it manually**
-
-All MinIO changes should remain programmatic and reproducible.
-
----
-
-## D20 — Use UTC for operational timestamps
-
-**Decision**
-
-Persist timestamps in UTC.
-
-**Why**
-
-Avoid ambiguity across machines, local time zones and daylight-saving transitions.
-
----
-
-## D21 — Save acquisition metadata after every successful Wikimedia asset
-
-**Decision**
-
-Update `_metadata.json` incrementally.
-
-**Why**
-
-Avoid a situation where files have been downloaded but metadata is lost because the process stopped before completing the full species batch.
-
----
-
-## D22 — Add HTTP retries and request delay for Wikimedia
-
-**Decision**
-
-Use retries for rate limits/temporary server errors and a small delay between API requests.
-
-**Why**
-
-External APIs are not perfectly reliable and acquisition should tolerate transient failures.
-
----
-
-## D23 — Apply only technical filters during Wikimedia acquisition
-
-**Decision**
-
-Filter by:
-
-- supported MIME type;
-- minimum long-side resolution;
-- maximum file size.
-
-**Why**
-
-These checks prevent obviously unsuitable technical assets without turning acquisition into the Trusted quality stage.
-
-**Limitation**
-
-Technical filtering does not guarantee semantic quality. Wikimedia categories can contain illustrations, historical media or otherwise less useful visual examples.
-
----
-
-## D24 — Make local filenames Windows-safe
-
-**Decision**
-
-Replace characters invalid on Windows and truncate excessively long filenames while preserving their extension.
-
-**Why**
-
-A Wikimedia source title produced a local path that Windows could not create.
-
-**Selected local maximum**
-
-Approximately 140 filename characters, leaving margin for the project directory path.
-
----
-
-## D25 — Do not preserve empty Temporal folders artificially
-
-**Decision**
-
-Allow `temporal_landing/` to disappear from the MinIO UI when empty.
-
-**Why**
-
-S3/MinIO folders are key prefixes, not real directories.
-
-Adding a placeholder object would introduce artificial data that every script would then need to ignore.
-
----
-
-## D26 — Common Landing scripts must support all project modalities
-
-**Decision**
-
-The same:
-
-```text
-ingest_local_data.py
-process_to_persistent.py
-```
-
-will handle images, audio and text.
-
-**Why**
-
-At these stages the operations are generic: raw bytes + common metadata.
-
-**Modality-specific behavior belongs to**
-
-- acquisition scripts;
-- Formatted scripts;
-- Trusted quality scripts.
-
----
-
-## D27 — Freeze common Landing after image validation
-
-**Decision**
-
-Do not independently modify the common Landing scripts while audio/text contributors are developing acquisition.
-
-**Why**
-
-Reduces merge conflicts and prevents modality-specific logic from leaking into generic scripts.
-
-Any required change should first be identified as a genuinely common requirement.
-
----
-
-## D28 — Documentation split
-
-**Decision**
-
-Use:
-
-- code comments/docstrings for local implementation understanding;
-- repository documentation for architecture and decisions;
-- final report for concise justifications, pros/cons and limitations.
-
-**Why**
-
-This keeps scripts readable without duplicating the final explanatory report.
-
----
-
-
-## D29 — Use JPEG as the canonical image encoding in Formatted
-
-**Decision**
-
-All formatted images use JPEG with the `.jpg` extension.
-
-**Why**
-
-- One predictable syntax for subsequent processing.
-- Wide support across image-processing tools.
-- Generally appropriate file sizes for the predominantly photographic wildlife dataset.
-
-**Trade-off**
-
-JPEG uses lossy compression and may alter image pixels. The raw source remains available in Persistent Landing.
-
----
-
-## D30 — Encode formatted images as RGB
-
-**Decision**
-
-Convert all supported source pixel modes to RGB before JPEG encoding.
-
-**Why**
-
-A single compatible pixel mode reduces variation in downstream decoding.
-
-**Trade-off**
-
-Original source modes and transparency cannot be represented identically by RGB JPEG.
-
----
-
-## D31 — Flatten transparency over white
-
-**Decision**
-
-Composite source images containing transparency onto an opaque white background.
-
-**Why**
-
-JPEG does not support alpha transparency.
-
-**Trade-off**
-
-The appearance of previously transparent pixels depends on the chosen background. Persistent retains the original image.
-
----
-
-## D32 — Use JPEG quality 95
-
-**Decision**
-
-Use `quality=95` as a fixed encoder parameter.
-
-**Why**
-
-Provides a consistent conversion policy that prioritizes visual fidelity for photographic images.
-
-**Trade-off**
-
-This is **not** a quality score; even high-quality JPEG recompression remains lossy. File sizes may vary.
-
----
-
-## D33 — Preserve dimensions and defer visual quality corrections
-
-**Decision**
-
-Formatted does not resize, crop, sharpen, deduplicate or rotate image pixels to correct EXIF orientation.
-
-**Why**
-
-Its responsibility is format homogenization rather than generic data cleaning or model-specific preparation.
-
-**Trade-off**
-
-Different source resolutions remain present. Some viewers may interpret retained EXIF orientation metadata differently.
-
----
-
-## D34 — Convert only the primary MPO frame
-
-**Decision**
-
-Allow internal MPO encoding even when the source filename ends in `.jpg`; export frame 0 as the canonical JPEG.
-
-**Why**
-
-Maintains the intended one-source-object-to-one-formatted-object mapping and allows all wildlife image assets to pass the same formatted contract.
-
-**Evidence**
-
-Four eagle MPO source objects contained two frames each, and two wolf MPO source objects contained three frames each.
-
-**Trade-off**
-
-Eight non-primary internal frames are not exported. The six original complete MPO files remain stored in Persistent Landing.
-
-**Alternative**
-
-Export all frames into separate JPEGs with explicit frame identifiers and one-to-many lineage. This remains an option if analytical tasks need secondary frames.
-
----
-
-## D35 — Mirror species hierarchy and retain original source identity
-
-**Decision**
-
-Use `formatted-zone/images/<species_id>/<persistent_filename_stem>.jpg` for outputs.
-
-**Why**
-
-The Persistent filename already includes source, species, UTC ingestion timestamp and raw technical hash.
-
-**Important**
-
-The embedded `asset_hash` describes the raw input asset. It is not the checksum of the converted JPEG.
-
----
-
-## D36 — Propagate lineage and record the format policy
-
-**Decision**
-
-Copy relevant Persistent object metadata and add `source_persistent_key_encoded`, `original_format`, `formatted_format`, `color_mode`, `jpeg_quality`, `format_version` and `formatted_at`.
-
-**Why**
-
-Allows downstream systems to trace a canonical asset to its raw source and identify the transformation policy.
-
-**Trade-off**
-
-S3 user metadata is not a full metadata catalog. Richer future lineage may require structured sidecar documents or a separate registry.
-
----
-
-## D37 — Keep Persistent Landing intact during formatting
-
-**Decision**
-
-Do not delete or replace raw Persistent objects after successfully creating canonical images.
-
-**Why**
-
-Supports auditability, reproduction, and reformatting if transformation policy changes or errors are found.
-
-**Trade-off**
-
-Maintaining raw and formatted copies consumes additional storage.
-
----
-
-## D38 — Use deterministic output keys and conflict-safe reexecution
-
-**Decision**
-
-Skip a previously formatted asset only when its destination metadata and format policy match expectations. Report incompatible existing outputs as errors instead of overwriting them.
-
-**Why**
-
-Prevents duplicate work and avoids silently hiding changed formatting contracts or incorrect lineage.
-
-**Trade-off**
-
-A changed formatting policy requires explicit versioning and planned regeneration of existing objects.
-
----
-
-## D39 — Keep formatting separate for each modality
-
-**Decision**
-
-Image conversion lives in `formatted_zone/format_images.py`. Audio and text will have their own dedicated scripts.
-
-**Why**
-
-The P1 specification requires per-format homogenization scripts, and the actual conversions are modality-specific.
-
-**Status**
-
-Image formatting completed and validated; audio and text formatting pending.
-
----
-
-## D40 — Validate the entire image batch in Formatted
-
-**Decision**
-
-Check actual decoded JPEG encoding, RGB mode, `.jpg` extension, metadata lineage, per-species counts, and absence of processing errors.
-
-**Evidence**
-
-Final validation passed for all 100 images (10 per species) with zero errors. Persistent Landing still holds the 100 originals.
-
-**Limitation**
-
-This technical validation does not replace the qualitative profiling and cleaning required in Trusted.
-
----
-
----
-
-## D41 — Choose FLAC/PCM16 for canonical audio
-
-**Decision**
-
-Use `.flac` with signed 16-bit PCM in Formatted audio, including for already-FLAC sources.
-
-**Why**
-
-The FLAC codec avoids an additional lossy *compression* step and can be decoded by common Python audio tools. It is consistent across audio inputs.
-
-**Trade-off**
-
-The conversion to PCM16 may quantize 24-bit or floating-point sources, and cannot recover information previously lost to MP3 or AAC. Complete original bytes remain in Persistent Landing.
-
----
-
-## D42 — Defer resampling and channel normalization
-
-**Decision**
-
-Retain available input sample rate and channel count instead of forcing a particular rate or mono representation.
-
-**Why**
-
-Those parameters are largely determined by future model requirements rather than the syntactic format contract.
-
-**Trade-off**
-
-Formatted audio can still vary in sample rate and channel count; these properties must be checked by later consumers.
-
----
-
-## D43 — Use the first audio stream and exclude source container extras
-
-**Decision**
-
-When ffmpeg can read a multi-stream input, format only the first audio stream, without copying embedded cover art, chapter information or source container-level tags.
-
-**Why**
-
-Provides one predictable audio asset per raw input. Key provenance is represented separately in S3 object metadata.
-
-**Trade-off**
-
-Additional audio streams and original container tags are not in Formatted; the full source remains available in Persistent.
-
----
-
-## D44 — Use ffmpeg with a libsndfile fallback
-
-**Decision**
-
-Use an available ffmpeg binary for broad format support, with the `soundfile`/libsndfile decoder as a fallback for its supported formats.
-
-**Why**
-
-Supports typical Xeno-canto MP3 as well as common and less-common future source encodings.
-
-**Trade-off**
-
-Decodability depends on installed codec/library versions. A recognized extension alone does not guarantee successful decoding.
-
----
-
-## D45 — Standardize text to UTF-8/LF/NFC plain text
-
-**Decision**
-
-Write `.txt` with UTF-8 without BOM, LF line endings, Unicode NFC, excluded control characters removed, and exactly one final newline.
-
-**Why**
-
-Simplifies parsing, indexing and cross-platform storage without applying relevance filters or deduplication.
-
-**Trade-off**
-
-Unicode normalization and line-ending changes alter source bytes. Markup and structured document conversion may also lose layout; originals remain in Persistent Landing.
-
----
-
-## D46 — Extract text from heterogeneous input representations
-
-**Decision**
-
-Implement parsers for plaintext, Markdown, HTML/XML, JSON/JSONL, PDF with selectable text, DOCX and ODT.
-
-**Why**
-
-Meets the P1 requirement to implement real format conversion even when present data is mostly `.txt` and `.html`.
-
-**Trade-off**
-
-Complex layouts may be flattened, Markdown parsing is intentionally lightweight, and scanned/image-only PDFs require OCR outside the current implementation.
-
----
-
-## D47 — Use deterministic-priority JSON extraction with a heuristic fallback
-
-**Decision**
-
-Search known text-bearing keys by breadth-first traversal (shallowest level first, key priority for ties). If none is usable, choose the longest nonempty string recursively. Handle JSON arrays/JSON Lines per record.
-
-**Why**
-
-Supports known schema conventions while allowing unknown source structures to yield a useful text candidate.
-
-**Trade-off**
-
-The fallback can choose irrelevant text. It must not be misrepresented as semantic verification; Trusted remains responsible for data-quality assessment.
-
----
-
-## D48 — Use conflict-safe incremental formatting across modalities
-
-**Decision**
-
-Before skipping an existing audio or text output, verify encoded source key, canonical format, formatter version, declared MIME type and nonempty size. Report conflicts rather than overwriting by default.
-
-**Why**
-
-Aligns with the existing image formatter and protects source lineage and format-version consistency.
-
-**Trade-off**
-
-Some legacy outputs may require explicit reformatting. `--force` is available for deliberate replacement and should be used with care.
-
----
-
-## D49 — Make dry-run limits match real processing limits
-
-**Decision**
-
-`--max-items` counts successful new conversions or planned conversions in dry-run mode; previously formatted assets do not count.
-
-**Why**
-
-A dry-run of one pending item should preview one pending operation, not all pending objects.
-
-**Trade-off**
-
-The number of source objects scanned before the limit is reached may be larger than the limit.
-
----
-
-## D50 — Normalize common Formatted lineage metadata without removing modality detail
-
-**Decision**
-
-Retain the original audio/text metadata names (`source_format`, `canonical_format`, `formatter_version`, `formatted_timestamp`) and add shared aliases (`original_format`, `formatted_format`, `format_version`, `formatted_at`).
-
-**Why**
-
-Eases later multimodal processing while retaining compatibility with the contributor's existing contracts.
-
-**Trade-off**
-
-Some fields are duplicated for interoperability, and previous outputs may lack newly added aliases until regenerated. Image policy version `1` and audio/text version `1.0` remain modality-specific.
-
----
-
-## D51 — Require valid provenance at the Formatted boundary
-
-**Decision**
-
-Require `modality`, `species_id`, `source_name` and `asset_hash`; verify that species metadata matches the Persistent object path. Explicitly close downloaded S3 stream bodies.
-
-**Why**
-
-Avoids misfiled data and preserves raw-object identity; stream closure improves reliability during larger runs.
-
-**Trade-off**
-
-Malformed/legacy Persistent objects must be corrected at their source rather than silently converted.
-
----
-
-## D52 — Separate offline verification from end-to-end object-store validation
-
-**Decision**
-
-Record completed tests with their actual execution environment; do not label audio/text Formatted Zone as fully validated until uploads, metadata and outputs are checked in real SILO/MinIO.
-
-**Evidence**
-
-12 focused regression tests passed locally during the revision review. A contributor reported 36 earlier tests passing with simulated object storage, but those tests were not independently re-run here.
-
-**Remaining work**
-
-Run controlled one-object and full-batch MinIO tests for audio/text, inspect canonical outputs and object counts per species, and verify a second incremental run.
-
----
-
-## Current handoff state
-
-**Implemented and end-to-end validated**
-
-- Wikimedia image acquisition and the generic Landing image flow.
-- Completion registry and incremental ingestion for images.
-- Image Formatted conversion: 100 JPEG/RGB objects across ten species, zero final errors.
-
-**Implemented but not validated end-to-end for the full datasets**
-
-- Xeno-canto audio and Wikipedia/GBIF text acquisition scripts.
-- Audio Formatted script targeting FLAC/PCM16.
-- Text Formatted script targeting UTF-8/LF/NFC plain text.
-- Audio/text formatting: 12 locally passed regression tests in this review; the contributor reported 36 additional earlier tests.
-
-**Pending**
-
-- Real object-store processing and complete outcome validation for audio and text.
-- Trusted Zone, Exploitation Zone, multimodal tasks and final orchestration.
-- Final report and presentation.
-
-This handoff is an implementation snapshot, not evidence of completed full-batch audio/text storage validation.
+**Enlaces:** [Índice](README.md) · [Landing](landing_zone_documentation.md) · [Formatted](formatted_zone_documentation.md) · [Trusted](trusted_zone_documentation.md).

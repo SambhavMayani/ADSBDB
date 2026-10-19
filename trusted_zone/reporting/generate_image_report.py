@@ -147,8 +147,7 @@ def aggregate(rows: list[dict]) -> tuple[dict, list[dict]]:
 def generate(client, version: str, config: dict, output: Path | None = None) -> Path:
     """Write self-contained report artifacts to the repository's reports folder."""
     now = datetime.now(timezone.utc)
-    base = output or ROOT / "reports" / "trusted_quality" / now.strftime("%Y%m%dT%H%M%SZ")
-    base.mkdir(parents=True, exist_ok=True)
+    base = output or ROOT / "reports" / "trusted_quality" / "images" / now.strftime("%Y%m%dT%H%M%SZ")
     rows = sorted(iter_manifests(client), key=lambda r: r.get("source_key", ""))
     # A partial earlier run must not silently produce a misleading global report.
     if not rows:
