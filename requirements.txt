@@ -1,3 +1,4 @@
+
 # Core and object storage
 boto3==1.43.107
 python-dotenv==1.2.4
@@ -5,26 +6,37 @@ PyYAML==6.0.3
 requests==2.34.2
 
 # Image processing
-Pillow>=10,<13
+Pillow==12.3.0
 
 # Audio processing
-soundfile>=0.12
-imageio-ffmpeg>=0.5
+soundfile==0.14.0
+imageio-ffmpeg==0.6.0
 
 # Text processing
-pypdf>=5
+pypdf==6.21.0
 
 # Trusted Zone: image quality and deduplication
-numpy>=1.26,<3
-opencv-python-headless>=4.8,<5
-scikit-image>=0.23,<1
+numpy==2.4.6
+opencv-python-headless==4.14.0.94
+scikit-image==0.26.0
 
 # Quality reports and visualizations
-matplotlib>=3.8,<4
-jinja2>=3.1,<4
+matplotlib==3.11.2
+jinja2==3.1.6
 
 # Watermark detection
-pytesseract>=0.3.13,<1
+pytesseract==0.3.13
+
+# Exploitation Zone: vector database
+chromadb==1.5.9
+
+# Exploitation Zone: multimodal embedding models
+sentence-transformers==5.7.0
+transformers==4.57.6
+huggingface-hub==0.36.2
+torch==2.14.1
+scipy==1.17.1
 
 # Automated testing
-pytest>=8,<10
+pytest==9.1.1
+pytest-cov==7.1.0

@@ -4,6 +4,9 @@ import json
 import re
 import time
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from orchestration.files import atomic_json_write
 
 import requests
 import yaml
@@ -193,12 +196,10 @@ def load_metadata(
         json.JSONDecodeError,
         OSError,
     ):
-        print(
-            "Warning: existing metadata "
-            "could not be read."
-        )
-        return []
+        raise ValueError("Existing acquisition metadata is unreadable; preserving it")
 
+    if not isinstance(records, list) or any(not isinstance(record, dict) for record in records):
+        raise ValueError("Acquisition metadata must be an array of records")
     return [
         record
         for record in records
@@ -212,26 +213,9 @@ def load_metadata(
     ]
 
 
-def save_metadata(
-    metadata_path,
-    records,
-):
-    """
-    Persist acquisition metadata immediately after each
-    successful asset.
-    """
-
-    with open(
-        metadata_path,
-        "w",
-        encoding="utf-8",
-    ) as file:
-        json.dump(
-            records,
-            file,
-            indent=2,
-            ensure_ascii=False,
-        )
+def save_metadata(metadata_path, records):
+    """Publish a complete registry atomically; preserve the previous one on failure."""
+    atomic_json_write(metadata_path, records)
 
 
 def record_identity(record):
@@ -869,6 +853,7 @@ def process_species(
         f"{len(records)}"
     )
 
+    errors = 0
     if "wikipedia" in sources:
         try:
             acquire_wikipedia(
@@ -881,9 +866,11 @@ def process_species(
             )
 
         except requests.RequestException as error:
+            errors += 1
             print(f"Wikipedia error: {error}")
 
         except OSError as error:
+            errors += 1
             print(f"Local file error: {error}")
 
     if "gbif" in sources:
@@ -900,6 +887,7 @@ def process_species(
             )
 
         except requests.RequestException as error:
+            errors += 1
             print(f"GBIF error: {error}")
 
     # Final write as an additional safeguard.
@@ -914,6 +902,8 @@ def process_species(
         f"{len(records)} texts"
     )
     print(f"Metadata: {metadata_path}")
+
+    return errors
 
 
 # ---------------------------------------------------------
@@ -1047,8 +1037,9 @@ def main():
 
     dataset_cache = {}
 
+    errors = 0
     for species in species_list:
-        process_species(
+        errors += process_species(
             session,
             species,
             args.sources,
@@ -1058,6 +1049,7 @@ def main():
             dataset_cache,
         )
 
+    return 1 if errors else 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

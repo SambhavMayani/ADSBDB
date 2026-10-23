@@ -27,7 +27,9 @@ Los datos se organizan bajo `images/<species_id>/`, `audio/<species_id>/` y `tex
 
 ## 2. Imágenes: JPEG/RGB/95
 
-**Entradas previstas:** `.jpg`, `.jpeg`, `.png`, `.webp`; la inspección con Pillow reconoce codificaciones internas incluso cuando una extensión resulta engañosa. Se encontraron archivos `.jpg` internamente MPO.
+**Entradas previstas:** `.jpg`, `.jpeg`, `.png`, `.webp`, `.bmp`, `.gif`, `.tif`, `.tiff` y `.mpo`, coherentes con el Security Gate. Pillow inspecciona la codificación interna; se encontraron archivos `.jpg` internamente MPO. En entradas multiframe se usa frame 0, sin expansión del número de activos.
+
+**Revisión 23-10-2026:** pruebas de modos de color, entradas inválidas, WAV/FLAC y extracción HTML/JSON/JSONL/Markdown/XML y texto UTF-16. El Security Gate reconoce BOM Unicode para no rechazar UTF-16/32 únicamente por sus bytes NUL. Los buckets pueden aislarse mediante variables de entorno y los clientes se crean de forma perezosa. El corpus original no se reconvirtió durante estas pruebas; véase [validación](testing_and_validation.md).
 
 | Operación | Política | Razón / limitación |
 |---|---|---|

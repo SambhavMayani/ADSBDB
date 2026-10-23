@@ -5,6 +5,9 @@ import json
 import re
 import time
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from orchestration.files import atomic_json_write
 
 import requests
 import yaml
@@ -94,7 +97,10 @@ def safe_filename(filename, max_length=140):
     )
 
     # Windows does not allow filenames ending in spaces or dots.
-    filename = filename.rstrip(" .")
+    filename = filename.rstrip(" .") or "asset"
+    reserved = {"CON", "PRN", "AUX", "NUL", *("COM" + str(i) for i in range(1, 10)), *("LPT" + str(i) for i in range(1, 10))}
+    if filename.split(".")[0].upper() in reserved:
+        filename = "_" + filename
 
     path = Path(filename)
 
@@ -129,29 +135,9 @@ def sha256_file(path):
     return sha256.hexdigest()
 
 
-def save_metadata(
-    metadata_path,
-    downloaded,
-):
-    """
-    Persist acquisition metadata immediately.
-
-    Metadata is saved after every successful asset so that
-    other pipeline stages never have to wait for the whole
-    species download to finish.
-    """
-
-    with open(
-        metadata_path,
-        "w",
-        encoding="utf-8",
-    ) as file:
-        json.dump(
-            downloaded,
-            file,
-            indent=2,
-            ensure_ascii=False,
-        )
+def save_metadata(metadata_path, downloaded):
+    """Publish a complete registry atomically; preserve the previous one on failure."""
+    atomic_json_write(metadata_path, downloaded)
 
 
 # ---------------------------------------------------------
@@ -426,6 +412,7 @@ def process_species(
     )
     print("=" * 60)
 
+    errors = 0
     titles = get_category_members(
         session,
         scientific_name,
@@ -456,15 +443,13 @@ def process_species(
             json.JSONDecodeError,
             OSError,
         ):
-            print(
-                "Warning: existing metadata "
-                "could not be read."
-            )
-            downloaded = []
+            raise ValueError("Existing acquisition metadata is unreadable; preserving it")
 
     else:
         downloaded = []
 
+    if not isinstance(downloaded, list) or any(not isinstance(record, dict) for record in downloaded):
+        raise ValueError("Image acquisition metadata must be an array of records")
     # Keep only metadata records whose local asset
     # still exists.
     downloaded = [
@@ -692,6 +677,7 @@ def process_species(
             )
 
         except requests.RequestException as error:
+            errors += 1
 
             print(
                 f"Error processing "
@@ -699,6 +685,7 @@ def process_species(
             )
 
         except OSError as error:
+            errors += 1
 
             print(
                 f"Local file error "
@@ -721,6 +708,7 @@ def process_species(
         f"Metadata: {metadata_path}"
     )
 
+    return errors
 
 # ---------------------------------------------------------
 # HTTP session
@@ -824,13 +812,15 @@ def main():
 
     session = create_session()
 
+    errors = 0
     for species in species_list:
-        process_species(
+        errors += process_species(
             session,
             species,
             args.limit,
         )
 
+    return 1 if errors else 0
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

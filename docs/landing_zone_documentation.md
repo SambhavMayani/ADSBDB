@@ -1,6 +1,6 @@
 # EcoSentinel — Landing Zone
 
-**Estado:** implementada y validada con las tres modalidades (100 imágenes, 34 audios, 64 textos). La incorporación posterior del **Security Gate** se ha probado sin romper el control incremental. **Fecha de revisión:** 19-10-2026.
+**Estado:** implementada y validada con las tres modalidades (100 imágenes, 34 audios, 64 textos). Security Gate y control incremental integrados. **Fecha de revisión:** 23-10-2026.
 
 > **Responsabilidad:** adquirir y preservar activos sin limpiarlos; identificar su procedencia; controlar qué ingestas técnicas han terminado. No decidir duplicados de calidad ni convertir formatos. Para las razones históricas de cada decisión, véase [decision_log.md](decision_log.md).
 
@@ -17,7 +17,7 @@ data/raw_dataset/<modality>/<species_id>/<file>
    |  Security Gate: inspección preliminar ANTES de subir
    v
 landing-zone/temporal_landing/
-   |  process_to_persistent.py: copia/verifica/registra/elimina temporal
+   |  process_to_persistent.py: copia/verifica/registra; conserva Temporal
    v
 landing-zone/persistent_landing/<modality>/<species_id>/<file>
    +--> landing-zone/_control/completed/<sha256_temporal_key>.json
@@ -39,6 +39,8 @@ data/raw_dataset/
 ```
 
 Cada `_metadata.json` asocia `local_filename`, `source_name` y `species_id`. Los proveedores pueden aportar más campos: URL e ID de origen, nombre científico, licencia/autor, información de grabación o idioma. La procedencia se captura en adquisición y viaja a las zonas siguientes; `source_name=unknown` no se admite.
+
+Los tres proveedores escriben el JSON mediante archivo temporal, fsync y reemplazo atómico. Un manifiesto corrupto provoca error en lugar de sustituirse por una lista vacía. Para nuevas ingestas se conserva además el registro completo del proveedor en `_control/acquisition/<sha256>.json`; la referencia `acquisition_metadata_key` acompaña al activo. Los 198 objetos históricos no se reescriben para añadir este campo. La asociación debe ser única y coherente con archivo y especie.
 
 | Modalidad | Fuente principal | Conservación en Landing |
 |---|---|---|
@@ -91,7 +93,7 @@ Ejemplo ilustrativo: `temporal_landing/07c5c9dbf9959468__wild_boar.jpg`.
 
 El hash + nombre diferencia cambios de contenido y preserva varias identidades de captación. **No elimina duplicados del dataset**; únicamente identifica un intento técnico de ingestión.
 
-Un archivo completado ya no está en Temporal, por lo que no basta con comprobar `head_object` en ese prefijo. Se usa un registro de finalización compartido en MinIO:
+Un archivo completado puede haberse retirado de Temporal mediante limpieza explícita, por lo que no basta con comprobar `head_object` en ese prefijo. Se usa un registro de finalización compartido en MinIO:
 
 ```text
 _control/completed/<SHA256(clave_temporal_completa)>.json
@@ -115,11 +117,11 @@ El sello temporal representa la entrada original en Temporal (campo `LastModifie
 Secuencia de escritura deliberada:
 
 1. Obtener Temporal y validar metadatos obligatorios.
-2. Copiar bytes **sin convertir** a Persistent y comprobar existencia.
+2. Copiar bytes **sin convertir** a Persistent y verificar metadatos, tamaño y SHA-256 de ambos objetos.
 3. Crear el marcador `_control/completed/` y comprobar existencia.
-4. Solo entonces eliminar el objeto Temporal.
+4. Conservar Temporal por defecto. Solo con `--cleanup-temporal`, eliminar después de todas las comprobaciones anteriores.
 
-Si ya existe Persistent sin marcador, el proceso puede reconstruir el registro; si existe marcador pero sigue habiendo copia Temporal, puede terminar su limpieza. El procedimiento histórico explícito es:
+Si ya existe Persistent sin marcador, el proceso puede reconstruir el registro después de verificarlo; si existe marcador y sigue Temporal, se vuelven a comprobar los bytes y la referencia, conservando ambos por defecto. Un marcador huérfano, una copia corrupta o una identidad incompatible causan error y no autorizan borrar nada. El procedimiento histórico explícito es:
 
 ```bash
 python landing_zone/persistent_landing/process_to_persistent.py --backfill-control
@@ -144,6 +146,8 @@ python tests/demo_security_gate.py
 ```
 
 **Validaciones efectuadas:** ingestión incremental y marcadores para imágenes; extensión operativa del mismo contrato a los 198 activos; integración del Security Gate comprobada con una repetición de la ingesta que conservó los marcadores y no provocó nuevas subidas innecesarias; demostración sintética de bloqueo. El estado de referencia tras persistencia completa son 100 imágenes, 34 audios y 64 textos, con Temporal vacía de los activos ya completados.
+
+La referencia histórica anterior a esta revisión tenía Temporal vacía por la política de limpieza de entonces. Las nuevas ejecuciones conservan Temporal. La suite actual prueba fallos de copia/marcador, reintento, corrupción, retención por defecto, limpieza explícita y propagación de errores al CLI sobre fixtures aislados; véase [validación](testing_and_validation.md).
 
 La prueba de `--dry-run` por sí sola no verifica todos los bytes ni la seguridad absoluta del contenido. Un contador de errores/bloqueos distinto de cero requiere investigación; no lanzar las etapas siguientes tras una ingestión fallida.
 

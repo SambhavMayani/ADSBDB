@@ -13,6 +13,9 @@ import os
 import re
 import time
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from orchestration.files import atomic_json_write
 from urllib.parse import urlparse
 
 import requests
@@ -55,10 +58,8 @@ def sha256_file(path):
 
 
 def save_metadata(path, records):
-    tmp = path.with_name(path.name + ".tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(records, f, ensure_ascii=False, indent=2)
-    tmp.replace(path)
+    """Publish a complete registry atomically; preserve the previous one on failure."""
+    atomic_json_write(path, records)
 
 
 def read_metadata(path, directory, species_id):

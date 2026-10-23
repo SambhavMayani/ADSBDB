@@ -37,3 +37,14 @@ chroma_data/
 
 # Generated Trusted Zone quality reports
 /reports/trusted_quality/
+/data/chromadb/
+
+# Runtime and test evidence
+/reports/orchestration/
+/reports/validation/
+/reports/security/
+.pytest_cache/
+.coverage*
+htmlcov/
+.env.*
+!.env.example

@@ -1,0 +1,1 @@
+"""EcoSentinel isolated regression suite."""

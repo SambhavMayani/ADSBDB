@@ -19,8 +19,8 @@ from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
-FORMATTED_BUCKET = "formatted-zone"
-TRUSTED_BUCKET = "trusted-zone"
+FORMATTED_BUCKET = os.getenv("ECOSENTINEL_FORMATTED_BUCKET", "formatted-zone")
+TRUSTED_BUCKET = os.getenv("ECOSENTINEL_TRUSTED_BUCKET", "trusted-zone")
 
 
 class QualityFailure(ValueError):
@@ -189,8 +189,8 @@ def publish(client, *, key: str, modality: str, data: bytes | None, metadata: di
         put_checked(client, key, data, "audio/flac" if modality == "audio" else "text/plain; charset=utf-8", new_metadata)
         stats["uploaded"] += 1
     elif status == "rejected" and old_trusted:
-        client.delete_object(Bucket=TRUSTED_BUCKET, Key=key)
-        stats["previously_accepted_removed"] += 1
+        # Accepted historical data is retained; the quality manifest records rejection.
+        stats["retirement_candidates"] += 1
 
 
 def validate_numeric_policy(config: dict, rules: dict[str, tuple[float, float | None]]) -> None:

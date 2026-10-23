@@ -20,13 +20,13 @@ from PIL import Image, UnidentifiedImageError
 
 LOGGER = logging.getLogger(__name__)
 
-LANDING_BUCKET = "landing-zone"
-FORMATTED_BUCKET = "formatted-zone"
+LANDING_BUCKET = os.getenv("ECOSENTINEL_LANDING_BUCKET", "landing-zone")
+FORMATTED_BUCKET = os.getenv("ECOSENTINEL_FORMATTED_BUCKET", "formatted-zone")
 PERSISTENT_PREFIX = "persistent_landing/images/"
 FORMATTED_PREFIX = "images/"
 
-SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-SUPPORTED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP", "MPO"}
+SUPPORTED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif", ".tif", ".tiff", ".mpo"}
+SUPPORTED_IMAGE_FORMATS = {"JPEG", "PNG", "WEBP", "MPO", "BMP", "GIF", "TIFF"}
 JPEG_QUALITY = 95
 FORMAT_VERSION = "1"
 
@@ -43,7 +43,7 @@ def create_s3_client():
 
     return boto3.client(
         "s3",
-        endpoint_url=os.getenv("S3_ENDPOINT_URL", "http://localhost:9000"),
+        endpoint_url=os.getenv("S3_ENDPOINT_URL", os.getenv("MINIO_ENDPOINT", "http://localhost:9000")),
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
     )

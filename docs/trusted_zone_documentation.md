@@ -1,6 +1,6 @@
 # EcoSentinel — Trusted Zone: Images, Audio y Text
 
-**Estado:** las **tres modalidades están implementadas, probadas en MinIO y validadas con el dataset actual**. Reejecución idempotente comprobada. **Fecha de revisión:** 19-10-2026.
+**Estado:** las **tres modalidades están implementadas, probadas en MinIO y validadas con el dataset actual**. Reejecución idempotente comprobada. **Fecha de revisión:** 23-10-2026.
 
 Este documento **sustituye** los anteriores `trusted_zone_design.md`, `trusted_audio_text_design.md` y `trusted_audio_text_usage.md`. Reúne arquitectura, criterios, pruebas, perfiles de calidad y guía de uso, evitando información duplicada o incompatible.
 
@@ -31,12 +31,14 @@ trusted-zone/
 
 **Importante:** `_quality/` contiene **JSON de auditoría**, no copias del contenido. Un archivo rechazado **no se publica** bajo `images/`, `audio/` o `text/`, pero deja un registro de por qué fue evaluado como rechazo. Persistent y Formatted permanecen disponibles para reproducir o revisar decisiones.
 
+**Conservación de aceptados anteriores:** una reevaluación rechazada no borra un objeto ya aceptado. Se registra como candidato a retirada (`retirement_candidates`); las bajas requieren revisión explícita. Exploitation comprueba el manifiesto vigente y no incorpora un activo actualmente rechazado; la conciliación detecta vectores que han quedado obsoletos sin purgarlos automáticamente. Un fallo S3/operativo se registra como `error`, no como rechazo de calidad, y no elimina el objeto válido anterior.
+
 | Etapa | Pregunta que resuelve |
 |---|---|
 | Security Gate — Landing | ¿Es admisible y razonablemente seguro **intentar ingerir** el archivo? |
 | Formatted | ¿Representación técnica canónica y procedencia correcta? |
 | Trusted | ¿Cumple la política de calidad? ¿Qué métricas/anomalías/duplicados presenta? |
-| Exploitation (pendiente) | ¿Cómo preparar entradas y embeddings para **un modelo concreto**? |
+| [Exploitation](exploitation_zone_documentation.md) | ¿Cómo preparar entradas y embeddings para **un modelo concreto**? |
 
 ## 2. Archivos y configuración
 
