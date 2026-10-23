@@ -1,0 +1,10 @@
+services:
+  minio-test:
+    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    ports:
+      - "127.0.0.1:19000:9000"
+    environment:
+      MINIO_ROOT_USER: ecosentinel_test
+      MINIO_ROOT_PASSWORD: only_for_isolated_tests
+    command: server /data
+    # Deliberately no production volumes, .env interpolation, or shared container_name.

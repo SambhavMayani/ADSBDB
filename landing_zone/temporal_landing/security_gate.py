@@ -102,6 +102,8 @@ def _magic_matches(header: bytes, extension: str, modality: str) -> bool:
             return header.startswith(b"PK\x03\x04")
         # Text content is intentionally decoded later by its dedicated format parser.
         # A binary executable or archive masquerading as text is always forbidden.
+        if header.startswith((b"\xff\xfe", b"\xfe\xff", b"\x00\x00\xfe\xff")):
+            return True  # Explicit Unicode BOM; decoding remains the formatter's job.
         return b"\x00" not in header and not header.startswith((b"PK\x03\x04", b"\x1f\x8b"))
     return False
 

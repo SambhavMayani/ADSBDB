@@ -1,871 +1,153 @@
 # EcoSentinel
 
-## Iberian Wildlife Multimodal Data Platform
+Plataforma multimodal de fauna ibérica para la P1 de ADSDB (UPC). Gestiona imágenes, audio y texto con una arquitectura por zonas, trazabilidad, controles de calidad y búsquedas con modelos preentrenados en CPU.
 
-EcoSentinel is a multimodal DataOps project focused on biodiversity monitoring and wildlife conservation in the Iberian Peninsula.
+## Estado comprobado
 
-The goal is to build an end-to-end data management pipeline capable of ingesting, organizing, formatting, cleaning and exploiting heterogeneous wildlife data while preserving provenance and traceability.
+- 198 activos aceptados en Trusted: 100 imágenes, 34 audios y 64 textos.
+- Cinco colecciones persistentes y 6.021 embeddings en `data/chromadb/`.
+- Orquestación secuencial con logs, bloqueo, límites de tiempo y conciliación final.
+- Tasks 1 y 2: consultas monomodales, multimodales y combinación de resultados con procedencia.
+- Task 3: descripción generativa con BLIP y recuperación de referencias.
+- Interfaz local con tres recorridos para probar las Tasks.
+- Pruebas aisladas, integración con S3 y Chroma reales y aceptación con modelos CPU.
+- GitHub Actions configurado para Windows y Ubuntu. La ejecución remota se comprueba en GitHub tras publicar la rama; no se confunde con los resultados locales.
 
-The project currently works with three modalities:
+Los resultados y límites detallados están en [validación](docs/testing_and_validation.md). El proyecto prioriza calidad del sistema; la similitud no equivale a identificación biológica verificada.
 
-- Images
-- Audio
-- Text
-
----
-
-# 1. Project Context
-
-Wildlife information is commonly distributed across different providers, formats and modalities. EcoSentinel centralizes this information in a zone-based data architecture so that it can later support:
-
-- structured data management;
-- multimodal exploration;
-- same-modality similarity search;
-- cross-modal retrieval;
-- embedding-based search;
-- generative multimodal tasks.
-
-The initial pilot contains ten Iberian wildlife species:
-
-| Species ID | Scientific name |
-|---|---|
-| `lynx_pardinus` | *Lynx pardinus* |
-| `canis_lupus` | *Canis lupus* |
-| `cervus_elaphus` | *Cervus elaphus* |
-| `sus_scrofa` | *Sus scrofa* |
-| `aquila_chrysaetos` | *Aquila chrysaetos* |
-| `bubo_bubo` | *Bubo bubo* |
-| `erithacus_rubecula` | *Erithacus rubecula* |
-| `alcedo_atthis` | *Alcedo atthis* |
-| `pelophylax_perezi` | *Pelophylax perezi* |
-| `timon_lepidus` | *Timon lepidus* |
-
-The species configuration is centralized in:
+## Arquitectura
 
 ```text
-config/species.yaml
+Adquisición opcional → raw_dataset → Security Gate
+    → Temporal Landing → Persistent Landing
+    → Formatted (JPEG / FLAC PCM16 / TXT UTF-8)
+    → Trusted (calidad, duplicados y manifiestos)
+    → Exploitation (CLIP / CLAP / E5, Chroma persistente)
+    → Tasks 1, 2 y 3 → interfaz local
 ```
 
-This prevents the species list from being hardcoded inside ingestion scripts.
+Persistent conserva los originales. Una revalidación de calidad no elimina automáticamente los activos previamente aceptados. Las consultas usan una **copia independiente del índice**; no abren la persistencia original mediante el cliente Chroma.
 
----
+## Instalación: Windows / Git Bash
 
-# 2. Data Sources
-
-The selected sources and current implementation status are:
-
-| Modality | Source | Status |
-|---|---|---|
-| Images | Wikimedia Commons | Implemented |
-| Audio | Xeno-canto | Script integrated; full dataset validation pending |
-| Text | Wikipedia (Spanish/English) and GBIF; MITECO potentially indirect | Script integrated; full dataset validation pending |
-
-The validated image acquisition pipeline contains:
-
-- 10 species;
-- 10 images per species;
-- 100 raw images in total;
-- acquisition metadata for every downloaded image.
-
-Raw data is not committed to Git.
-
----
-
-# 3. Pipeline Architecture
-
-EcoSentinel follows a zone-based DataOps architecture:
-
-```text
-External Data Sources
-        |
-        v
-Local Raw Dataset
-        |
-        v
-Landing Zone
-  |
-  +-- Temporal Landing
-  |
-  +-- Persistent Landing
-        |
-        v
-Formatted Zone
-        |
-        v
-Trusted Zone
-        |
-        v
-Exploitation Zone
-        |
-        v
-Multimodal Tasks
-```
-
-## Landing Zone
-
-The Landing Zone is the entry point of the system.
-
-It is divided into:
-
-- **Temporal Landing**: transient raw storage. Assets remain here until they are safely processed.
-- **Persistent Landing**: permanent raw storage with organization, naming conventions and traceability metadata.
-
-The image flow is currently implemented and validated end-to-end.
-
-## Formatted Zone
-
-The Formatted Zone standardizes each modality into a canonical representation without altering the Persistent Landing originals. **Images are implemented and end-to-end validated (100 JPEG/RGB outputs). Audio and text formatters are implemented and locally regression-tested, but full MinIO validation is pending.**
-
-## Trusted Zone
-
-The Trusted Zone will perform modality-specific quality checks and cleaning.
-
-This is also where true dataset duplicate detection belongs.
-
-## Exploitation Zone
-
-The Exploitation Zone will generate embeddings from Trusted data and store them in modality-specific vector collections, planned with ChromaDB.
-
----
-
-# 4. Repository Structure
-
-```text
-ecosentinel-adsdb/
-|
-|-- config/
-|   `-- species.yaml
-|
-|-- landing_zone/
-|   |
-|   |-- data_acquisition/
-|   |   |-- download_wikimedia_images.py
-|   |   |-- download_xeno_canto_audio.py
-|   |   `-- download_species_texts.py
-|   |
-|   |-- temporal_landing/
-|   |   `-- ingest_local_data.py
-|   |
-|   `-- persistent_landing/
-|       `-- process_to_persistent.py
-|
-|-- formatted_zone/
-|   |-- format_images.py
-|   |-- format_audio.py
-|   `-- format_text.py
-|
-|-- trusted_zone/
-|
-|-- exploitation_zone/
-|
-|-- multimodal_tasks/
-|
-|-- orchestration/
-|   |-- check_minio_connection.py
-|   `-- initialize_storage.py
-|
-|-- tests/
-|   |-- test_audio_acquisition.py
-|   `-- test_formatted_regressions.py
-|
-|-- docs/
-|   |-- landing_zone_documentation.md
-|   |-- formatted_zone_documentation.md
-|   `-- decision_log.md
-|
-|-- docker-compose.yml
-|-- requirements.txt
-|-- .env.example
-|-- .gitignore
-`-- README.md
-```
-
-The repository stores code, configuration and documentation.
-
-The actual multimodal assets are stored locally during acquisition and in object storage during pipeline execution.
-
----
-
-# 5. Local Raw Data Contract
-
-All acquisition scripts must write data using the following structure:
-
-```text
-data/raw_dataset/
-├── images/
-│   └── <species_id>/
-│       ├── <asset files>
-│       └── _metadata.json
-├── audio/
-│   └── <species_id>/
-│       ├── <asset files>
-│       └── _metadata.json
-└── text/
-    └── <species_id>/
-        ├── <asset files>
-        └── _metadata.json
-```
-
-This structure is the common contract used by the Landing ingestion scripts.
-
-Each `_metadata.json` record must contain at least:
-
-```text
-local_filename
-source_name
-species_id
-```
-
-The ingestion script derives `modality` and `species_id` from the directory hierarchy and reads `source_name` from acquisition metadata.
-
-`source_name="unknown"` is rejected.
-
-Audio and text contributors should respect this contract and should not modify the common Landing scripts unless a genuinely shared requirement is identified.
-
----
-
-# 6. Object Storage
-
-The project uses an S3-compatible object storage service deployed with Docker.
-
-The current Docker environment uses **SILO**, which is compatible with the MinIO/S3 API and can be accessed from Python through `boto3`.
-
-Service endpoints:
-
-```text
-S3 API:      http://localhost:9000
-Web console: http://localhost:9001
-```
-
-The web interface is only used for inspection and debugging.
-
-All bucket creation, uploads, copies and deletions are performed programmatically.
-
-Current buckets:
-
-```text
-landing-zone
-formatted-zone
-trusted-zone
-```
-
-The Landing bucket contains three logical areas:
-
-```text
-landing-zone/
-├── temporal_landing/
-├── persistent_landing/
-└── _control/
-    └── completed/
-```
-
-`temporal_landing/` may disappear from the MinIO UI when empty. This is expected because S3-style folders are logical key prefixes rather than physical directories.
-
----
-
-# 7. Landing Zone Design
-
-## Temporal Landing
-
-Local assets are uploaded with keys following:
-
-```text
-temporal_landing/<hash16>__<filename>
-```
-
-Example:
-
-```text
-temporal_landing/07c5c9dbf9959468__wild_boar.jpg
-```
-
-`hash16` is derived from the first 16 hexadecimal characters of the file SHA-256.
-
-The combination of content hash and filename is deliberate:
-
-```text
-same bytes + same filename
-→ same technical ingestion identity
-
-same bytes + different filename
-→ different ingestion asset
-
-same filename + different bytes
-→ different ingestion asset
-```
-
-Landing therefore handles ingestion identity, not semantic duplicate detection.
-
-## Persistent Landing
-
-Persistent objects are organized as:
-
-```text
-persistent_landing/<modality>/<species_id>/<filename>
-```
-
-Persistent filenames follow:
-
-```text
-<source>$<species>$<timestamp>$<hash>.<extension>
-```
-
-Example:
-
-```text
-persistent_landing/images/sus_scrofa/
-wikimedia_commons$sus_scrofa$05-10-2026_15-29-36$07c5c9dbf9959468.jpg
-```
-
-The timestamp corresponds to the original Temporal ingestion time and is expressed in UTC.
-
----
-
-# 8. Incremental Ingestion
-
-Incremental ingestion is implemented using a completion registry stored in MinIO:
-
-```text
-_control/completed/
-```
-
-For every asset that successfully completes Landing, the pipeline creates:
-
-```text
-_control/completed/<control_id>.json
-```
-
-where:
-
-```text
-control_id = SHA256(full Temporal object key)
-```
-
-The full 64-character SHA-256 is intentionally retained for control markers.
-
-The registry allows `ingest_local_data.py` to determine whether an asset has already completed Landing without scanning Persistent storage.
-
-The ingestion decision is:
-
-```text
-Build Temporal key
-      |
-      v
-Already exists in Temporal?
-  Yes -> SKIP TEMPORAL
-  No
-      |
-      v
-Completion marker exists?
-  Yes -> SKIP COMPLETED
-  No
-      |
-      v
-Upload to Temporal
-```
-
-This makes repeated ingestion runs safe and idempotent.
-
----
-
-# 9. Safe Temporal to Persistent Processing
-
-`process_to_persistent.py` follows this order:
-
-```text
-1. Validate Temporal metadata
-2. Build Persistent key
-3. Copy object to Persistent
-4. Verify Persistent object
-5. Create completion marker
-6. Verify completion marker
-7. Delete Temporal object
-```
-
-Temporal deletion happens last.
-
-This minimizes the risk of losing an asset if an intermediate operation fails.
-
-A backfill command is available for Persistent objects created before the completion registry existed:
-
-```bash
-python landing_zone/persistent_landing/process_to_persistent.py --backfill-control
-```
-
----
-
-# 10. Why `_control/completed/` Exists
-
-Several alternatives were considered for incremental ingestion:
-
-- allow repeated Persistent versions and clean them later in Trusted;
-- scan Persistent on every ingestion;
-- keep a local JSON registry;
-- keep state in SQLite;
-- store deterministic completion markers in MinIO.
-
-The completion registry was selected because it provides:
-
-- direct object lookup;
-- shared state between team members;
-- no dependency on Persistent naming/layout;
-- no dependency on Formatted or Trusted;
-- clear recovery semantics;
-- simple inspection and debugging.
-
-The trade-off is that `_control` introduces extra operational state that must remain synchronized with Persistent storage.
-
-To mitigate this, markers are only created after the Persistent object has been verified.
-
-More detail is available in:
-
-```text
-docs/decision_log.md
-docs/landing_zone_documentation.md
-```
-
----
-
-# 11. Image Acquisition
-
-The implemented and end-to-end validated **image** acquisition script is:
-
-```text
-landing_zone/data_acquisition/download_wikimedia_images.py
-```
-
-It:
-
-- loads species from `config/species.yaml`;
-- queries Wikimedia Commons;
-- downloads JPEG, PNG and WEBP assets;
-- applies technical size/resolution filters;
-- captures provenance and licensing metadata;
-- computes SHA-256;
-- writes `_metadata.json`;
-- supports incremental execution;
-- retries temporary HTTP/API failures;
-- writes metadata after every successful asset;
-- sanitizes Windows-invalid filename characters;
-- truncates excessively long filenames while preserving the extension.
-
-The acquisition layer does not convert image formats. Format normalization belongs to the Formatted Zone.
-
----
-
-# 12. Formatted Images — Canonical Representation
-
-Image formatting is implemented in:
-
-```text
-formatted_zone/format_images.py
-```
-
-It reads the 100 raw image objects under `landing-zone/persistent_landing/images/`, converts them into canonical JPEG files, and writes the output into `formatted-zone/images/<species_id>/`. Persistent originals are not removed.
-
-The current formatting policy is:
-
-| Property | Contract |
-|---|---|
-| Source extensions | `.jpg`, `.jpeg`, `.png`, `.webp` |
-| Internal formats | JPEG, PNG, WEBP, MPO |
-| Canonical output | JPEG with `.jpg` extension |
-| Color mode | RGB |
-| JPEG encoding quality | 95 |
-| Dimensions | Preserved |
-| Orientation | Pixels not rotated; EXIF orientation retained when available |
-| Transparency | White background where required for JPEG |
-| MPO | Primary frame only; full raw file retained in Persistent |
-
-The output object retains source lineage metadata including an encoded Persistent key, actual detected source format, formatting policy/version, and UTC formatting timestamp. The hash in the output filename is the source asset hash, **not** a hash of newly encoded JPEG bytes.
-
-Run after completing Persistent Landing ingestion:
-
-```bash
-# Preview one pending transformation (read-only)
-python formatted_zone/format_images.py --dry-run --max-items 1
-
-# Convert one pending image
-python formatted_zone/format_images.py --max-items 1
-
-# Convert all remaining images
-python formatted_zone/format_images.py
-```
-
-The script is incremental: it skips compatible existing outputs and reports conflicting objects rather than overwriting them. `--max-items` limits new conversions, not scanned objects.
-
-Validated image state: **100 raw images in Persistent Landing and 100 JPEG/RGB images in Formatted**, ten per species, with zero errors in the final technical validation.
-
-Full specifications, trade-offs and MPO policy: [`docs/formatted_zone_documentation.md`](docs/formatted_zone_documentation.md).
-
-### 12.1 Audio and text formatters
-
-The independent scripts standardize audio to FLAC/PCM16 and text to plain UTF-8/LF/NFC. Both use Persistent Landing inputs and `formatted-zone` outputs, preserving source lineage and raw objects.
-
-| Modality | Input examples | Canonical output | Important limitation |
-|---|---|---|---|
-| Audio | MP3, WAV, FLAC, OGG/Opus, AAC/M4A and other ffmpeg-readable encodings | `.flac`, 16-bit PCM | Encoding to PCM16 may quantize higher-precision source samples; existing lossy artifacts are not restored |
-| Text | `.txt`, `.html`, `.md`, `.json`, `.jsonl`, `.pdf`, `.docx`, `.odt` | `.txt`, UTF-8, LF, NFC | Markup/layout may be lost; image-only PDFs need OCR |
-
-The text JSON parser uses deterministic priority keys first and, when these are absent, the longest nonempty string as a fallback. It does not perform semantic quality control.
-
-```bash
-python formatted_zone/format_audio.py --dry-run --max-items 1
-python formatted_zone/format_text.py --dry-run --max-items 1
-
-# Run one sample per modality after Persistent Landing ingestion
-python formatted_zone/format_audio.py --max-items 1
-python formatted_zone/format_text.py --max-items 1
-
-# Full processing only after verifying a sample
-python formatted_zone/format_audio.py
-python formatted_zone/format_text.py
-```
-
-Both scripts support `--species` and explicit `--force`. By default, a previously formatted destination is skipped only if its lineage, canonical policy, MIME type and nonempty size are compatible. Conflicting output metadata causes an error rather than a silent overwrite.
-
-**Validation status:** code is implemented and 12 offline regression tests passed during review; full real SILO/MinIO batch conversion remains pending. The contributor also reported 36 earlier tests, not independently rerun here.
-
-See [`docs/formatted_zone_documentation.md`](docs/formatted_zone_documentation.md) for the detailed format contracts and design trade-offs.
-
----
-
-# 13. Local Setup
-
-## 13.1 Clone the repository
-
-```bash
-git clone <repository-url>
-cd <repository-folder>
-```
-
-## 13.2 Install Docker Desktop
-
-Docker Desktop must be installed and running.
-
-The project has been tested on Windows using Docker Desktop with the WSL 2 backend.
-
-Check Docker:
-
-```bash
-docker --version
-```
-
-From Git Bash, if necessary:
-
-```bash
-docker.exe --version
-```
-
-Check Docker Compose:
-
-```bash
-docker.exe compose version
-```
-
-## 13.3 Configure environment variables
-
-Create a local `.env` from:
-
-```text
-.env.example
-```
-
-From Git Bash:
-
-```bash
-cp .env.example .env
-```
-
-Example:
-
-```env
-MINIO_ROOT_USER=ecosentinel_admin
-MINIO_ROOT_PASSWORD=your_local_password
-```
-
-Each developer should use local credentials.
-
-`.env` is ignored by Git and must not be committed.
-
-## 13.4 Start object storage
-
-```bash
-docker.exe compose up -d
-```
-
-Check the running container:
-
-```bash
-docker.exe ps
-```
-
-Expected container:
-
-```text
-ecosentinel-minio
-```
-
-Open the web console:
-
-```text
-http://localhost:9001
-```
-
----
-
-# 14. Python Environment
-
-Create a virtual environment:
+Requisitos: Python 3.11 de 64 bits, Docker Desktop para MinIO y un entorno virtual. Desde la raíz del repositorio:
 
 ```bash
 python -m venv .venv
-```
-
-Activate it from Git Bash on Windows:
-
-```bash
 source .venv/Scripts/activate
-```
-
-Install dependencies:
-
-```bash
 python -m pip install -r requirements.txt
+python -m pip check
+cp -n .env.example .env
 ```
 
-Image formatting requires `Pillow>=10,<13`. Audio and text formatting additionally require `soundfile`, `imageio-ffmpeg` and `pypdf`; verify that all of these are present in `requirements.txt` before running the new scripts. `charset-normalizer` is an optional text decoding helper usually supplied by `requests`.
+En PowerShell, activar con `.\.venv\Scripts\Activate.ps1`. Configurar las credenciales **solo en `.env`**, sin subirlo a Git. El único fichero de dependencias es `requirements.txt`; contiene las versiones directas comprobadas. No se requieren CUDA ni Tesseract para el funcionamiento básico.
 
----
-
-# 15. Initialize Storage
-
-Test the object-storage connection:
+En Linux, se puede instalar primero la rueda CPU de la versión de PyTorch indicada en `requirements.txt` desde el índice oficial de PyTorch y después instalar el mismo requirements. La CI usa ese procedimiento para evitar dependencias CUDA innecesarias. La reproducción completa de versiones transitivas debe verificarse en el entorno nuevo; un pin directo no sustituye esa comprobación.
 
 ```bash
+docker compose up -d
 python orchestration/check_minio_connection.py
 ```
 
-Initialize required buckets:
+La imagen del servicio actual es SILO, compatible con la API S3 de MinIO. Se conserva la configuración y el volumen existentes. **No utilizar `docker compose down -v` sobre el proyecto de datos.**
+
+## Primera ejecución segura sobre un repositorio con datos
 
 ```bash
-python orchestration/initialize_storage.py
+# Plan puro: no abre servicios ni modifica datos
+python -m orchestration.pipeline --plan
+
+# Verificación de lectura, sin crear embeddings
+python -m orchestration.reconcile
+
+# Inventario SQLite de solo lectura
+python -m orchestration.audit --source data/chromadb
 ```
 
-The initialization script is idempotent and can safely be executed multiple times.
+No es necesario reindexar el corpus validado. Cambiar modelos o contratos v1 requiere una estrategia de versionado explícita.
 
----
+## Probar las Tasks y la interfaz
 
-# 16. Running the Current Image Pipeline
-
-## 16.1 Download images
-
-Download up to 10 images per configured species:
+Con los escritores del índice detenidos, crear una instantánea **una vez**:
 
 ```bash
-python landing_zone/data_acquisition/download_wikimedia_images.py --limit 10
+python -m orchestration.audit --source data/chromadb --snapshot data/search_index
+python -m multimodal_tasks.search --status
+python -m webapp.server
 ```
 
-Run one species only:
+Abrir `http://127.0.0.1:8765`. La herramienta rechaza sobrescribir una instantánea existente: para refrescarla, usar otra ruta y `--index RUTA` al iniciar el servidor. Los medios siguen leyéndose del MinIO local.
+
+- **Explorar por texto:** texto a texto, espacios mixtos o todas las modalidades.
+- **Buscar similares:** imagen/audio de consulta; misma modalidad o modalidades combinadas.
+- **Describir una imagen:** BLIP genera una descripción y recupera referencias.
+- Cada resultado permite consultar procedencia y buscar activos relacionados.
+
+Los encoders de búsqueda requieren sus pesos en la caché local. Los commits observados están en `config/model_manifest.json` y se usan para resolver las revisiones nulas históricas sin cambiar fingerprints. La preparación no indexa datos:
 
 ```bash
-python landing_zone/data_acquisition/download_wikimedia_images.py \
-  --species timon_lepidus \
-  --limit 10
+python -m exploitation_zone.prepare_models --download
+# Verificar después sin permitir descargas
+python -m exploitation_zone.prepare_models
 ```
 
-Repeated execution is safe. Existing registered assets are reused rather than downloaded again.
-
-## 16.2 Ingest local assets into Temporal
+El flag `--download` autoriza Internet para preparar pesos; la operación habitual es offline. Para BLIP:
 
 ```bash
-python landing_zone/temporal_landing/ingest_local_data.py
+python -m multimodal_tasks.generate ruta/imagen.jpg --allow-model-download
 ```
 
-The script reports separate counters for uploaded assets, objects already in Temporal, already completed assets and errors.
+No se necesitan claves de un proveedor generativo. Las consultas externas no se guardan ni se indexan.
 
-## 16.3 Process Temporal into Persistent
+## Pipeline automático
 
-Process all available Temporal assets:
+La siguiente operación **escribe** en las zonas e indexa entradas pendientes. Revisar primero el plan y preservar una copia coherente del índice:
 
 ```bash
-python landing_zone/persistent_landing/process_to_persistent.py
+python -m orchestration.pipeline --plan
+python -m orchestration.pipeline --run
 ```
 
-Process only one asset:
+La adquisición de nuevos datos desde Internet solo se añade con `--with-acquisition`. La preparación de pesos es una decisión independiente. Para reanudar después de corregir un fallo:
 
 ```bash
-python landing_zone/persistent_landing/process_to_persistent.py --max-items 1
+python -m orchestration.pipeline --run --from-stage exploitation
 ```
 
-Run without modifying storage:
+La recuperación se apoya en objetos, marcadores y registros completos; no salta un paso solo porque un informe anterior lo marcó como correcto. El borrado de Temporal está desactivado por defecto; su limpieza explícita solo se permite tras verificar copia, procedencia y checksum. [Detalles](docs/pipeline_orchestration.md).
+
+## Pruebas reproducibles
 
 ```bash
-python landing_zone/persistent_landing/process_to_persistent.py --dry-run
+# Pruebas sin Internet ni MinIO de producción
+python -m pytest -q
+
+# Servicio de prueba separado: puerto 19000, sin volumen de producción
+docker compose -p ecosentinel-tests -f docker-compose.test.yml up -d
+python -m pytest -m integration -q
+
+# Aceptación CLI completa con modelos reales ya en caché y datos sintéticos
+python -m orchestration.smoke --run
+python -m orchestration.smoke --run
+
+# Cerrar únicamente el servicio de prueba
+docker compose -p ecosentinel-tests -f docker-compose.test.yml down
 ```
 
-Backfill historical completion markers:
+La integración usa buckets efímeros con nombres controlados y nunca el puerto 9000. La aceptación de tu corpus existente utiliza lecturas y una copia del índice:
 
 ```bash
-python landing_zone/persistent_landing/process_to_persistent.py --backfill-control
+python -m orchestration.validate_reference --models --task3
 ```
 
-After the validated complete image Landing run, the observed state is:
+Los informes de tests, logs y evidencias locales se guardan en `reports/validation/`; datos, pesos, secretos e índices se excluyen de Git. Los informes Trusted se conservan fechados y deben interpretarse según el dataset de cada ejecución.
 
-```text
-Temporal image objects:       0
-Persistent image objects:   100
-Image completion markers:   100
-```
+## Documentación
 
-Then run the Formatted stage as described in **Section 12**. This produces the validated 100 canonical JPEG objects while keeping Persistent Landing intact.
+El [índice de `docs/`](docs/README.md) organiza los documentos de Landing, Formatted, Trusted, Exploitation, Tasks, operación, pruebas, requisitos oficiales y demostración. `docs/decision_log.md` conserva las decisiones históricas y añade las nuevas sin renumerarlas.
 
----
+## Límites conocidos
 
-# 17. Metadata and Traceability
+No existe benchmark anotado de precisión taxonómica, ni transacción distribuida entre todas las zonas. La lectura del corpus para comprobar idempotencia sigue teniendo coste. El audio se decodifica por archivo; el consumo no es constante para duraciones arbitrarias. Las consultas usan una instantánea que se refresca explícitamente. La web está destinada a ejecución local, sin publicación en Internet.
 
-Metadata is kept only when it has a clear purpose.
-
-Examples include:
-
-```text
-scientific_name
-modality
-species_id
-source_name
-source_record_id
-ingestion_timestamp
-license
-original_filename
-asset_hash
-```
-
-Metadata supports:
-
-- provenance;
-- traceability between zones;
-- incremental ingestion;
-- source identification;
-- licensing;
-- filtering;
-- downstream retrieval;
-- linking embeddings to source assets.
-
----
-
-# 18. Deduplication Responsibility
-
-The Landing Zone does **not** perform quality deduplication.
-
-Landing asks:
-
-```text
-Has this exact technical ingestion already completed Landing?
-```
-
-Trusted will later ask:
-
-```text
-Are these assets duplicates or near-duplicates from a data-quality perspective?
-```
-
-For example, the same bytes under a different filename may enter Landing as two ingestion assets and later be identified as an exact duplicate in Trusted.
-
-This separation keeps ingestion control and quality control independent.
-
----
-
-# 19. Documentation
-
-Detailed Landing documentation:
-
-```text
-docs/landing_zone_documentation.md
-```
-
-Formatted Zone implementation and image conversion policy:
-
-```text
-docs/formatted_zone_documentation.md
-```
-
-Architectural decisions and their justification:
-
-```text
-docs/decision_log.md
-```
-
-These documents explain Landing ingestion state, object naming and traceability, UTC/SHA-256 choices, Formatted conversion contracts for images/audio/text (including MPO, FLAC precision and JSON extraction), alternatives, operational limitations and team handoff rules.
-
----
-
-# 20. Team Development Rules
-
-To reduce integration problems:
-
-1. acquisition scripts may be developed independently by modality;
-2. all acquisition scripts must respect the common local raw-data contract;
-3. `ingest_local_data.py` and `process_to_persistent.py` are shared generic Landing components;
-4. modality-specific logic should not be added to those shared scripts unless required by all modalities;
-5. major architectural decisions should be recorded in `docs/decision_log.md`;
-6. data should never be moved manually through the MinIO/SILO web UI.
-
----
-
-# 21. Stopping the Environment
-
-Stop Docker services:
-
-```bash
-docker.exe compose down
-```
-
-Stored objects remain available because the storage volume is persistent.
-
-Start again:
-
-```bash
-docker.exe compose up -d
-```
-
----
-
-# 22. Current Project Status
-
-| Component | Status |
-|---|---|
-| Repository structure | Complete |
-| Species configuration | Complete |
-| Docker/S3 infrastructure | Complete |
-| Programmatic bucket initialization | Complete |
-| Wikimedia image acquisition | Complete |
-| Image metadata generation | Complete |
-| Common raw-data contract | Complete |
-| Temporal Landing ingestion | Complete |
-| Persistent Landing processing | Complete |
-| Completion registry | Complete |
-| Incremental Landing ingestion | Complete |
-| Image Landing end-to-end validation | Complete |
-| Audio acquisition | Script integrated — end-to-end validation pending |
-| Text acquisition | Script integrated — end-to-end validation pending |
-| Formatted images | Complete — 100 JPEG/RGB objects validated |
-| Formatted audio | Implemented; offline regression tests passed; full MinIO validation pending |
-| Formatted text | Implemented; offline regression tests passed; full MinIO validation pending |
-| Trusted Zone | Pending |
-| Exploitation Zone | Pending |
-| Multimodal tasks | Pending |
-| Final orchestration | Pending |
-
----
-
-# 23. Next Development Step
-
-The common Landing flow, image acquisition, and Formatted image conversion are implemented and validated.
-
-Next work can proceed in parallel:
-
-- Validate and, if needed, complete the integrated audio and text acquisition scripts against the common raw-data contract; their complete datasets have not yet been verified here.
-- Run real SILO/MinIO smoke tests and then full-batch validation for the implemented `format_audio.py` and `format_text.py` scripts.
-- Start designing image Trusted Zone quality checks and profiling, with duplicate detection separated from ingestion idempotence.
-
-Do not modify shared Landing scripts for modality-specific formatting operations. Record important decisions in `docs/decision_log.md`.
+Al recrear el servicio de pruebas se pierde su almacenamiento S3 efímero. Para una sesión nueva, utilizar `python -m orchestration.smoke --run --workdir data/smoke-session-02` (una carpeta aún no utilizada) y repetir con esa misma ruta. No reutilizar el índice de una sesión cuyo S3 fue retirado; conservarlo como evidencia.

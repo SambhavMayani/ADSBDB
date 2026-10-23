@@ -57,10 +57,10 @@ from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-LANDING_BUCKET = "landing-zone"
+LANDING_BUCKET = os.getenv("ECOSENTINEL_LANDING_BUCKET", "landing-zone")
 PERSISTENT_PREFIX = "persistent_landing/"
 
-FORMATTED_BUCKET = "formatted-zone"
+FORMATTED_BUCKET = os.getenv("ECOSENTINEL_FORMATTED_BUCKET", "formatted-zone")
 
 MODALITY = "text"
 

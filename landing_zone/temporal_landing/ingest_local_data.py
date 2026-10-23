@@ -2,11 +2,11 @@ import os
 import json
 from pathlib import Path
 import hashlib
-import boto3
-from dotenv import load_dotenv
 from botocore.exceptions import ClientError
 import mimetypes
-from security_gate import inspect_file, read_config, record_incident
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from landing_zone.temporal_landing.security_gate import inspect_file, read_config, record_incident
 # ---------------------------------------------------------
 # Project paths
 # ---------------------------------------------------------
@@ -18,13 +18,14 @@ RAW_DATASET_ROOT = (
     / "data"
     / "raw_dataset"
 )
+RAW_DATASET_ROOT = Path(os.getenv("ECOSENTINEL_RAW_ROOT", str(RAW_DATASET_ROOT)))
 
 
 # ---------------------------------------------------------
 # MinIO configuration
 # ---------------------------------------------------------
 
-BUCKET_NAME = "landing-zone"
+BUCKET_NAME = os.getenv("ECOSENTINEL_LANDING_BUCKET", "landing-zone")
 
 TEMPORAL_PREFIX = "temporal_landing"
 CONTROL_COMPLETED_PREFIX = "_control/completed"
@@ -34,14 +35,9 @@ CONTROL_COMPLETED_PREFIX = "_control/completed"
 # MinIO connection
 # ---------------------------------------------------------
 
-load_dotenv()
+from orchestration.storage import LazyClient
 
-minio_client = boto3.client(
-    "s3",
-    endpoint_url="http://localhost:9000",
-    aws_access_key_id=os.getenv("MINIO_ROOT_USER"),
-    aws_secret_access_key=os.getenv("MINIO_ROOT_PASSWORD"),
-)
+minio_client = LazyClient()
 
 # ---------------------------------------------------------
 # Local dataset discovery
@@ -127,6 +123,20 @@ def get_source_name(file_info):
             )
 
     return "unknown"
+
+
+def acquisition_record(file_info):
+    """Recover the full provider record; preserve it in control storage for new assets."""
+    path = file_info['path'].parent / '_metadata.json'
+    records = json.loads(path.read_text(encoding='utf-8'))
+    if not isinstance(records, list) or any(not isinstance(record, dict) for record in records):
+        raise ValueError('Acquisition metadata must be an array of records')
+    matches = [record for record in records if record.get('local_filename') == file_info['path'].name]
+    if len(matches) != 1:
+        raise ValueError('Expected exactly one acquisition record per file')
+    if matches[0].get('species_id') != file_info['relative_path'].parts[1]:
+        raise ValueError('Acquisition species does not match the dataset path')
+    return matches[0]
 
 # ---------------------------------------------------------
 # MinIO object key
@@ -286,6 +296,15 @@ def upload_file(file_info, object_key):
     object_metadata = build_object_metadata(
         file_info
     )
+    record = acquisition_record(file_info)
+    lineage_id = hashlib.sha256((file_info['relative_path'].as_posix() + '\0' + object_key).encode('utf-8')).hexdigest()
+    lineage_key = f'_control/acquisition/{lineage_id}.json'
+    lineage = json.dumps({'schema_version': 1, 'temporal_key': object_key,
+                          'relative_path': file_info['relative_path'].as_posix(),
+                          'acquisition': record}, ensure_ascii=False, sort_keys=True).encode('utf-8')
+    minio_client.put_object(Bucket=BUCKET_NAME, Key=lineage_key, Body=lineage,
+                            ContentType='application/json')
+    object_metadata['acquisition_metadata_key'] = lineage_key
 
     content_type, _ = mimetypes.guess_type(
         local_path.name
@@ -384,6 +403,10 @@ def ingest_dataset(max_uploads=None):
             )
 
             if object_exists(object_key):
+                expected = build_object_metadata(file_info)
+                actual = minio_client.head_object(Bucket=BUCKET_NAME, Key=object_key).get("Metadata", {})
+                if any(actual.get(k) != expected[k] for k in ("species_id", "modality", "source_name")):
+                    raise ValueError("Temporal identity conflicts with species/source; preserve both inputs")
                 print(
                     "SKIP TEMPORAL: "
                     f"{file_info['relative_path']}"
@@ -398,6 +421,16 @@ def ingest_dataset(max_uploads=None):
                     "SKIP COMPLETED: "
                     f"{file_info['relative_path']}"
                 )
+                response = minio_client.get_object(Bucket=BUCKET_NAME, Key=build_control_key(object_key))
+                try:
+                    marker = json.loads(response["Body"].read())
+                finally:
+                    response["Body"].close()
+                expected = build_object_metadata(file_info)
+                if any(marker.get(k) != expected[k] for k in ("species_id", "modality", "source_name")):
+                    raise ValueError("Completion identity conflicts with species/source")
+                if not marker.get("persistent_key") or not object_exists(marker["persistent_key"]):
+                    raise ValueError("Completion marker has no verified Persistent target")
                 completed_skipped_count += 1
                 continue
 

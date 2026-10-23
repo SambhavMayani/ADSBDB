@@ -34,13 +34,15 @@ from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 from PIL import Image, ImageOps
 
-from quality.duplicate_index import DuplicateIndex
-from quality.image_quality import analyze, assess_watermark, has_tesseract, image_rejection
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from trusted_zone.quality.duplicate_index import DuplicateIndex
+from trusted_zone.quality.image_quality import analyze, assess_watermark, has_tesseract, image_rejection
 
 LOGGER = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[1]
-FORMATTED_BUCKET = "formatted-zone"
-TRUSTED_BUCKET = "trusted-zone"
+FORMATTED_BUCKET = os.getenv("ECOSENTINEL_FORMATTED_BUCKET", "formatted-zone")
+TRUSTED_BUCKET = os.getenv("ECOSENTINEL_TRUSTED_BUCKET", "trusted-zone")
 SOURCE_PREFIX = "images/"
 POLICY_FILE = ROOT / "config" / "trusted_quality.yaml"
 
@@ -170,6 +172,7 @@ def run(client, config: dict, version: str, *, species: str | None = None, max_i
                 watermark: dict = {"method": "not_assessed", "status": "not_assessed"}
                 duplicate = None
                 reason = None
+                operational_error = False
                 sha = None
                 source_meta = {}
                 etag = None
@@ -206,10 +209,11 @@ def run(client, config: dict, version: str, *, species: str | None = None, max_i
                     LOGGER.info("Quality rejection %s: %s", key, reason)
                 except (ClientError, OSError) as exc:
                     reason = f"processing_error:{type(exc).__name__}"
+                    operational_error = True
                     stats["errors"] += 1
                     LOGGER.error("Processing failure %s: %s", key, exc)
 
-                status = "rejected" if reason else "accepted"
+                status = "error" if operational_error else ("rejected" if reason else "accepted")
                 stats[status] += 1
                 elapsed = time.perf_counter() - start
                 manifest = status_manifest(key, version, source_meta, etag, status, reason, metrics, watermark, duplicate, elapsed)
@@ -248,13 +252,12 @@ def run(client, config: dict, version: str, *, species: str | None = None, max_i
                         put_verified(client, TRUSTED_BUCKET, key, payload, "image/jpeg", metadata)
                         stats["uploaded"] += 1
                 elif existing_trusted:
-                    # Never keep a previously accepted object when policy/data changes.
-                    client.delete_object(Bucket=TRUSTED_BUCKET, Key=key)
-                    stats["previously_accepted_removed"] += 1
+                    # Preserve validated bytes; record proposed retirement for review.
+                    stats["retirement_candidates"] += 1
                 LOGGER.info("%-8s %s%s", status.upper(), key, f" ({reason})" if reason else "")
 
     if report and not dry_run and species is None and max_items is None:
-        from reporting.generate_image_report import generate
+        from trusted_zone.reporting.generate_image_report import generate
         location = generate(client, version, config)
         LOGGER.info("Quality report: %s", location)
     return dict(stats)

@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import math
 from collections import Counter
 from datetime import datetime, timezone
@@ -171,7 +172,7 @@ def generate(client, modality: str, version: str, config: dict, output: Path | N
     if not rows:
         raise ValueError(f"No Trusted {modality} quality manifests found")
     now = datetime.now(timezone.utc)
-    base = output or ROOT / "reports" / "trusted_quality" / modality / now.strftime("%Y%m%dT%H%M%SZ")
+    base = output or Path(os.getenv("ECOSENTINEL_REPORT_ROOT", str(ROOT / "reports"))) / "trusted_quality" / modality / now.strftime("%Y%m%dT%H%M%S_%fZ")
     base.mkdir(parents=True, exist_ok=True)
     summary, table = aggregate(rows, modality)
     summary.update({

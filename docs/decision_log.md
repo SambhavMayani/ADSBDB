@@ -204,6 +204,32 @@
 
 ## Estado de entrega y trabajos futuros
 
-**Validado ahora:** Landing con Security Gate y registro incremental; Formatted para las tres modalidades; Trusted para las tres modalidades con 100 imágenes, 34 audios y 64 textos aceptados; informes y pruebas de reejecución. **Pendiente:** Exploitation, tareas multimodales, orquestación y memoria final. Como mejoras opcionales quedan el análisis manual de flags watermark y la evolución visual del informe de imágenes; no se presentan como ya implementadas.
+**Revisión 23-10-2026:** implementadas las cuatro zonas, Tasks 1–3, interfaz y orquestación. Las evidencias y límites se mantienen en [validación](testing_and_validation.md). La memoria dispone de borrador y requiere revisión/maquetación académica; el workflow remoto necesita su ejecución en GitHub. Las decisiones históricas anteriores describen el diseño en su fecha; D63–D70 recogen las sustituciones actuales.
 
 **Enlaces:** [Índice](README.md) · [Landing](landing_zone_documentation.md) · [Formatted](formatted_zone_documentation.md) · [Trusted](trusted_zone_documentation.md).
+
+## G. Orquestación y explotación (D63–D70)
+
+### D63 — Retención y verificación antes de limpiar
+Temporal se conserva por defecto; la limpieza requiere `--cleanup-temporal` y verificación de SHA-256, tamaño, metadatos y marcador. Sustituye la política histórica de limpieza automática. Una reevaluación Trusted propone una retirada y conserva bytes previos. Coste: espacio adicional y necesidad de revisión de bajas.
+
+### D64 — Recuperación mediante reejecución idempotente
+Subprocesos con el intérprete activo, sin shell, con timeout y bloqueo global independiente del directorio de informes. El primer error detiene la cadena. Informes atómicos y logs UTF-8 redactados conservan evidencia. No se promete una transacción distribuida entre S3, JSON y Chroma: el reintento verifica y repara cada frontera.
+
+### D65 — Índice original protegido y consultas sobre copia
+La auditoría usa hashes y SQLite `mode=ro`; no arranca Chroma sobre el original. La instantánea se crea solo en un destino nuevo y se verifica antes/después. Las consultas rechazan la ruta original. Coste: copia adicional y necesidad de renovar explícitamente una instantánea cuando cambien los datos.
+
+### D66 — Mantener el contrato histórico de las cinco colecciones
+Se preservan nombres, fingerprints, modelos y segmentación v1 para evitar regenerar los 6.021 vectores. El manifiesto registra los commits observados en caché, sin atribuir revisiones que el contrato histórico dejó nulas. En ejecución, los adapters resuelven esas revisiones nulas con el manifiesto y rechazan revisiones mutables o desconocidas: se fija la carga futura sin reescribir la historia. `prepare_models` separa preparación de pesos e indexación y requiere `--download` para Internet. Cambiar el encoder requiere una colección versionada y validación, no mezclar representaciones.
+
+### D67 — Agrupar por activo y fusionar posiciones
+Task 1 excluye todo el activo de referencia. Task 2 consulta espacios compartidos; la federación usa RRF con k=60. Cuotas explícitas reservan modalidades disponibles para evitar dominancia de fragmentos textuales. No es un top-k global puro ni una comparación entre distancias CLIP/CLAP/E5. Para hasta 64 candidatos se calcula coseno exacto con lectura acotada; conjuntos mayores usan HNSW. Esta decisión evita depender de segmentos HNSW aún sin materializar en colecciones diminutas, sin ocultar errores de almacenamiento.
+
+### D68 — Generación externa en CPU
+BLIP con revisión fijada genera una descripción; después CLIP recupera referencias. Se separan responsabilidades y se documentan errores semánticos posibles. No se llama RAG porque las referencias no condicionan el texto generado. Pesos en caché y descarga explícita.
+
+### D69 — Tres niveles de evidencia y CI
+Suite offline con Chroma temporal y HTTP; integración S3 aislada con encoders deterministas; aceptación separada con modelos CPU reales. Las pruebas bloquean S3 de producción. El workflow Windows/Linux configura CI, pero su existencia no demuestra una ejecución remota correcta. La cobertura global se comunica incluyendo adquisición y CLIs, sin excluir módulos para inflarla.
+
+### D70 — Procedencia completa y metadatos atómicos
+Los proveedores preservan `_metadata.json` mediante fsync y reemplazo atómico y fallan ante corrupción. Nuevas ingestas guardan un registro de adquisición separado y propagan su referencia. Los datos históricos no se reescriben para backfill automático. Coste: objetos de control adicionales y convivencia explícita con metadatos antiguos.

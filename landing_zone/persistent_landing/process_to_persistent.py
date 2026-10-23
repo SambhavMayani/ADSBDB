@@ -7,16 +7,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote, unquote
 
-import boto3
 from botocore.exceptions import ClientError
-from dotenv import load_dotenv
 
 
 # ---------------------------------------------------------
 # MinIO configuration
 # ---------------------------------------------------------
 
-BUCKET_NAME = "landing-zone"
+BUCKET_NAME = os.getenv("ECOSENTINEL_LANDING_BUCKET", "landing-zone")
 
 TEMPORAL_PREFIX = "temporal_landing/"
 PERSISTENT_PREFIX = "persistent_landing/"
@@ -27,14 +25,11 @@ CONTROL_COMPLETED_PREFIX = "_control/completed/"
 # MinIO connection
 # ---------------------------------------------------------
 
-load_dotenv()
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from orchestration.storage import LazyClient
 
-minio_client = boto3.client(
-    "s3",
-    endpoint_url="http://localhost:9000",
-    aws_access_key_id=os.getenv("MINIO_ROOT_USER"),
-    aws_secret_access_key=os.getenv("MINIO_ROOT_PASSWORD"),
-)
+minio_client = LazyClient()
 
 
 # ---------------------------------------------------------
@@ -285,6 +280,7 @@ def build_persistent_metadata(
     )
 
     return {
+        **object_info.get('Metadata', {}),
         "modality": temporal_metadata[
             "modality"
         ],
@@ -598,6 +594,7 @@ def backfill_completion_markers():
     print(f"Skipped:         {skipped_count}")
     print(f"Errors:          {error_count}")
     print("=" * 70)
+    return error_count
 
 
 # ---------------------------------------------------------
@@ -659,6 +656,28 @@ def delete_temporal_object(
     )
 
 
+def verify_persistent_copy(temporal_key, persistent_key, source_info):
+    """Verify lineage and exact bytes before acknowledging a completed transfer."""
+    head = get_object_info(persistent_key)
+    expected = build_persistent_metadata(temporal_key, source_info)
+    if head.get('ContentLength') != source_info.get('ContentLength'):
+        raise RuntimeError('Persistent size mismatch')
+    if any(head.get('Metadata', {}).get(k) != v for k, v in expected.items()):
+        raise RuntimeError('Persistent lineage mismatch')
+    hashes = []
+    for key in (temporal_key, persistent_key):
+        response = minio_client.get_object(Bucket=BUCKET_NAME, Key=key)
+        try:
+            digest = hashlib.sha256()
+            for chunk in iter(lambda: response['Body'].read(1024 * 1024), b''):
+                digest.update(chunk)
+            hashes.append(digest.digest())
+        finally:
+            response['Body'].close()
+    if hashes[0] != hashes[1]:
+        raise RuntimeError('Persistent checksum mismatch')
+
+
 # ---------------------------------------------------------
 # Persistent processing
 # ---------------------------------------------------------
@@ -666,6 +685,7 @@ def delete_temporal_object(
 def process_temporal_objects(
     max_items=None,
     dry_run=False,
+    cleanup_temporal=False,
 ):
     """
     Process objects from Temporal Landing into Persistent
@@ -754,20 +774,27 @@ def process_temporal_objects(
             if object_exists(
                 control_key
             ):
+                response = minio_client.get_object(Bucket=BUCKET_NAME, Key=control_key)
+                try:
+                    marker = json.loads(response['Body'].read())
+                finally:
+                    response['Body'].close()
+                if marker.get('temporal_key') != temporal_key or marker.get('persistent_key') != persistent_key:
+                    raise RuntimeError('Completion marker lineage mismatch')
+                verify_persistent_copy(temporal_key, persistent_key, object_info)
                 print(
                     "ACTION:     ALREADY COMPLETED"
                 )
 
                 already_completed_count += 1
 
-                delete_temporal_object(
-                    temporal_key
-                )
+                if cleanup_temporal:
+                    delete_temporal_object(temporal_key)
 
-                deleted_count += 1
+                deleted_count += int(cleanup_temporal)
 
                 print(
-                    "TEMPORAL:   DELETED"
+                    "TEMPORAL:   " + ("DELETED" if cleanup_temporal else "RETAINED")
                 )
 
                 print("-" * 70)
@@ -803,6 +830,7 @@ def process_temporal_objects(
                     "ACTION:     COPIED"
                 )
 
+            verify_persistent_copy(temporal_key, persistent_key, object_info)
             create_completion_marker(
                 temporal_key,
                 persistent_key,
@@ -815,14 +843,13 @@ def process_temporal_objects(
                 "CONTROL:    CREATED"
             )
 
-            delete_temporal_object(
-                temporal_key
-            )
+            if cleanup_temporal:
+                delete_temporal_object(temporal_key)
 
-            deleted_count += 1
+            deleted_count += int(cleanup_temporal)
 
             print(
-                "TEMPORAL:   DELETED"
+                "TEMPORAL:   " + ("DELETED" if cleanup_temporal else "RETAINED")
             )
 
             print("-" * 70)
@@ -877,6 +904,7 @@ def process_temporal_objects(
 
     print("=" * 70)
 
+    return error_count
 
 # ---------------------------------------------------------
 # CLI
@@ -920,17 +948,20 @@ def main():
         ),
     )
 
+    parser.add_argument("--cleanup-temporal", action="store_true", help="Explicitly remove verified transient copies")
     args = parser.parse_args()
 
+    if args.max_items is not None and args.max_items < 1:
+        parser.error("--max-items must be positive")
     if args.backfill_control:
-        backfill_completion_markers()
-        return
+        return 1 if backfill_completion_markers() else 0
 
-    process_temporal_objects(
-        max_items=args.max_items,
-        dry_run=args.dry_run,
+    errors = process_temporal_objects(
+        max_items=args.max_items, dry_run=args.dry_run,
+        cleanup_temporal=args.cleanup_temporal,
     )
+    return 1 if errors else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

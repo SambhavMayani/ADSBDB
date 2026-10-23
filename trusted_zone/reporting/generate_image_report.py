@@ -10,6 +10,7 @@ import csv
 import json
 import logging
 import math
+import os
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,7 +22,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 LOGGER = logging.getLogger(__name__)
 ROOT = Path(__file__).resolve().parents[2]
-BUCKET = "trusted-zone"
+BUCKET = os.getenv("ECOSENTINEL_TRUSTED_BUCKET", "trusted-zone")
 QUALITY_PREFIX = "_quality/images/"
 TEMPLATES = Path(__file__).resolve().parent / "templates"
 
@@ -147,7 +148,8 @@ def aggregate(rows: list[dict]) -> tuple[dict, list[dict]]:
 def generate(client, version: str, config: dict, output: Path | None = None) -> Path:
     """Write self-contained report artifacts to the repository's reports folder."""
     now = datetime.now(timezone.utc)
-    base = output or ROOT / "reports" / "trusted_quality" / "images" / now.strftime("%Y%m%dT%H%M%SZ")
+    base = output or Path(os.getenv("ECOSENTINEL_REPORT_ROOT", str(ROOT / "reports"))) / "trusted_quality" / "images" / now.strftime("%Y%m%dT%H%M%S_%fZ")
+    base.mkdir(parents=True, exist_ok=True)
     rows = sorted(iter_manifests(client), key=lambda r: r.get("source_key", ""))
     # A partial earlier run must not silently produce a misleading global report.
     if not rows:
@@ -193,7 +195,7 @@ def generate(client, version: str, config: dict, output: Path | None = None) -> 
 def main():
     import sys
     sys.path.insert(0, str(ROOT / "trusted_zone"))
-    from validate_images import load_policy, s3_client
+    from trusted_zone.validate_images import load_policy, s3_client
     version, config = load_policy()
     print(generate(s3_client(), version, config))
 
