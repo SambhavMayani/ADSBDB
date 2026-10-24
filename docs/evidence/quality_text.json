@@ -1,0 +1,109 @@
+{
+  "evidence_source": "reports/trusted_quality/text/20261019T173352Z/summary.json",
+  "summary": {
+    "modality": "text",
+    "analyzed": 64,
+    "accepted": 64,
+    "rejected": 0,
+    "errors": 0,
+    "acceptance_rate_pct": 100.0,
+    "provenance_coverage_pct": 100.0,
+    "source_measured_mb": 0.5667,
+    "trusted_measured_mb": 0.5667,
+    "species_before": {
+      "alcedo_atthis": 3,
+      "aquila_chrysaetos": 4,
+      "bubo_bubo": 3,
+      "canis_lupus": 12,
+      "cervus_elaphus": 12,
+      "erithacus_rubecula": 3,
+      "lynx_pardinus": 11,
+      "pelophylax_perezi": 2,
+      "sus_scrofa": 12,
+      "timon_lepidus": 2
+    },
+    "species_after": {
+      "alcedo_atthis": 3,
+      "aquila_chrysaetos": 4,
+      "bubo_bubo": 3,
+      "canis_lupus": 12,
+      "cervus_elaphus": 12,
+      "erithacus_rubecula": 3,
+      "lynx_pardinus": 11,
+      "pelophylax_perezi": 2,
+      "sus_scrofa": 12,
+      "timon_lepidus": 2
+    },
+    "sources_before": {
+      "gbif": 44,
+      "wikipedia": 20
+    },
+    "sources_after": {
+      "gbif": 44,
+      "wikipedia": 20
+    },
+    "reasons": {},
+    "quality_flags": {},
+    "measurements": {
+      "words": {
+        "count": 64,
+        "mean": 1452.1875,
+        "median": 208.5,
+        "min": 33.0,
+        "max": 13869.0,
+        "p10": 40.6,
+        "p90": 3946.1
+      },
+      "characters": {
+        "count": 64,
+        "mean": 8785.9844,
+        "median": 1285.0,
+        "min": 215.0,
+        "max": 80858.0,
+        "p10": 250.9,
+        "p90": 23585.4
+      },
+      "unique_word_ratio": {
+        "count": 64,
+        "mean": 0.563,
+        "median": 0.579,
+        "min": 0.1612,
+        "max": 0.9,
+        "p10": 0.2996,
+        "p90": 0.8033
+      },
+      "alphanumeric_ratio": {
+        "count": 64,
+        "mean": 0.9409,
+        "median": 0.9577,
+        "min": 0.7766,
+        "max": 0.9856,
+        "p10": 0.8923,
+        "p90": 0.9677
+      },
+      "formatted_size_bytes": {
+        "count": 64,
+        "mean": 8854.7188,
+        "median": 1285.0,
+        "min": 215.0,
+        "max": 81014.0,
+        "p10": 257.3,
+        "p90": 23624.6
+      }
+    },
+    "possible_emails_total": 0,
+    "possible_ipv4_total": 0,
+    "policy_version": "1",
+    "policy": {
+      "max_file_mb": 4,
+      "short_document_warning_words": 20,
+      "alphanumeric_ratio_warning": 0.45,
+      "near_duplicate_shingle_words": 5,
+      "near_duplicate_min_shingles": 5,
+      "near_duplicate_jaccard_warning": 0.9
+    },
+    "generated_at_utc": "2026-10-19T17:33:52.562543+00:00",
+    "report_scope": "All _quality/text/ manifests currently in MinIO",
+    "caveat": "Charts compare evaluated Formatted assets against the accepted subset; they do not imply the accepted media were acoustically/textually modified. Manifest timestamps refer to each object's last changed evaluation; removed upstream objects may leave stale manifests."
+  }
+}

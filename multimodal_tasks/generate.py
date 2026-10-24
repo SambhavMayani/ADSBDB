@@ -1,4 +1,5 @@
 """Task 3: pretrained image captioning followed by traceable multimodal retrieval."""
+
 from __future__ import annotations
 import argparse
 import hashlib
@@ -16,6 +17,7 @@ def caption(image_bytes: bytes, *, allow_download=False) -> str:
     import torch
     from PIL import Image, ImageOps
     from transformers import BlipProcessor, BlipForConditionalGeneration
+
     options = {'revision': REVISION, 'local_files_only': not allow_download}
     processor = BlipProcessor.from_pretrained(MODEL, use_fast=False, **options)
     model = BlipForConditionalGeneration.from_pretrained(MODEL, **options).to('cpu').eval()
@@ -31,6 +33,7 @@ def caption(image_bytes: bytes, *, allow_download=False) -> str:
     finally:
         del model, processor
         import gc
+
         gc.collect()
 
 
@@ -40,10 +43,16 @@ def describe(image_bytes, service, *, captioner=caption, allow_download=False, l
     if not isinstance(generated, str) or not generated.strip():
         raise ValueError('The generative model returned an empty caption')
     results = service.text(generated, mode='image_text', limit=limit)
-    return {'task': 'image_caption_and_retrieval', 'caption': generated,
-            'model': MODEL, 'revision': REVISION, 'input_sha256': hashlib.sha256(image_bytes).hexdigest(),
-            'references': results, 'duration_seconds': round(time.perf_counter() - started, 3),
-            'limitations': 'Generated English caption; not verified species identification. References are retrieval evidence, not a factual verification of the caption.'}
+    return {
+        'task': 'image_caption_and_retrieval',
+        'caption': generated,
+        'model': MODEL,
+        'revision': REVISION,
+        'input_sha256': hashlib.sha256(image_bytes).hexdigest(),
+        'references': results,
+        'duration_seconds': round(time.perf_counter() - started, 3),
+        'limitations': 'Generated English caption; not verified species identification. References are retrieval evidence, not a factual verification of the caption.',
+    }
 
 
 def main(argv=None):
@@ -55,7 +64,10 @@ def main(argv=None):
     if args.image.stat().st_size > 10 * 1024 * 1024:
         parser.error('Image exceeds 10 MB')
     from multimodal_tasks.search import SearchService
-    result = describe(args.image.read_bytes(), SearchService(args.index), allow_download=args.allow_model_download)
+
+    result = describe(
+        args.image.read_bytes(), SearchService(args.index), allow_download=args.allow_model_download
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

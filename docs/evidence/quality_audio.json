@@ -1,0 +1,128 @@
+{
+  "evidence_source": "reports/trusted_quality/audio/20261019T173341Z/summary.json",
+  "summary": {
+    "modality": "audio",
+    "analyzed": 34,
+    "accepted": 34,
+    "rejected": 0,
+    "errors": 0,
+    "acceptance_rate_pct": 100.0,
+    "provenance_coverage_pct": 100.0,
+    "source_measured_mb": 223.3511,
+    "trusted_measured_mb": 223.3511,
+    "species_before": {
+      "alcedo_atthis": 4,
+      "aquila_chrysaetos": 4,
+      "bubo_bubo": 4,
+      "canis_lupus": 4,
+      "cervus_elaphus": 4,
+      "erithacus_rubecula": 4,
+      "lynx_pardinus": 2,
+      "pelophylax_perezi": 4,
+      "sus_scrofa": 4
+    },
+    "species_after": {
+      "alcedo_atthis": 4,
+      "aquila_chrysaetos": 4,
+      "bubo_bubo": 4,
+      "canis_lupus": 4,
+      "cervus_elaphus": 4,
+      "erithacus_rubecula": 4,
+      "lynx_pardinus": 2,
+      "pelophylax_perezi": 4,
+      "sus_scrofa": 4
+    },
+    "sources_before": {
+      "xeno_canto": 34
+    },
+    "sources_after": {
+      "xeno_canto": 34
+    },
+    "reasons": {},
+    "quality_flags": {
+      "low_rms": 2,
+      "many_low_energy_windows": 9
+    },
+    "measurements": {
+      "duration_seconds": {
+        "count": 34,
+        "mean": 99.3184,
+        "median": 40.9118,
+        "min": 2.472,
+        "max": 752.37034,
+        "p10": 18.4416,
+        "p90": 197.901
+      },
+      "rms_dbfs": {
+        "count": 34,
+        "mean": -34.4937,
+        "median": -30.9585,
+        "min": -56.844,
+        "max": -21.037,
+        "p10": -53.1744,
+        "p90": -23.3299
+      },
+      "peak_dbfs": {
+        "count": 34,
+        "mean": -9.7359,
+        "median": -3.9195,
+        "min": -37.264,
+        "max": -0.009,
+        "p10": -30.0554,
+        "p90": -0.4171
+      },
+      "clipping_sample_pct": {
+        "count": 34,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "p10": 0.0,
+        "p90": 0.0
+      },
+      "low_energy_window_pct": {
+        "count": 34,
+        "mean": 44.9871,
+        "median": 43.005,
+        "min": 0.0,
+        "max": 97.363,
+        "p10": 1.9064,
+        "p90": 94.6694
+      },
+      "sample_rate_hz": {
+        "count": 34,
+        "mean": 42330.8824,
+        "median": 44100.0,
+        "min": 22050.0,
+        "max": 48000.0,
+        "p10": 24000.0,
+        "p90": 48000.0
+      }
+    },
+    "sample_rate_counts": {
+      "22050": 1,
+      "24000": 5,
+      "44100": 12,
+      "48000": 16
+    },
+    "channel_counts": {
+      "1": 9,
+      "2": 25
+    },
+    "policy_version": "1",
+    "policy": {
+      "max_file_mb": 200,
+      "min_duration_seconds": 0.01,
+      "short_duration_warning_seconds": 0.5,
+      "clipping_amplitude_threshold": 0.99,
+      "clipping_pct_warning": 1.0,
+      "low_rms_dbfs_warning": -55,
+      "low_energy_dbfs_threshold": -50,
+      "low_energy_window_pct_warning": 80,
+      "dc_offset_warning": 0.02
+    },
+    "generated_at_utc": "2026-10-19T17:33:41.917776+00:00",
+    "report_scope": "All _quality/audio/ manifests currently in MinIO",
+    "caveat": "Charts compare evaluated Formatted assets against the accepted subset; they do not imply the accepted media were acoustically/textually modified. Manifest timestamps refer to each object's last changed evaluation; removed upstream objects may leave stale manifests."
+  }
+}

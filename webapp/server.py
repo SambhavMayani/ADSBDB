@@ -1,4 +1,5 @@
 """Loopback-only web UI. Read-only media and bounded, serialized CPU queries."""
+
 from __future__ import annotations
 import argparse
 import base64
@@ -11,6 +12,7 @@ import os
 import threading
 from pathlib import Path, PurePosixPath
 from urllib.parse import parse_qs, urlsplit
+from multimodal_tasks.rag_model import RagResourceError
 
 STATIC = Path(__file__).with_name('static')
 LOGGER = logging.getLogger('ecosentinel.web')
@@ -19,7 +21,12 @@ MAX_BODY = 14 * 1024 * 1024
 
 def validate_key(key):
     parts = PurePosixPath(key).parts
-    if len(parts) != 3 or parts[0] not in ('images', 'audio', 'text') or '..' in parts or '\\' in key:
+    if (
+        len(parts) != 3
+        or parts[0] not in ('images', 'audio', 'text')
+        or '..' in parts
+        or '\\' in key
+    ):
         raise ValueError('Invalid media reference')
     return key
 
@@ -31,12 +38,14 @@ def query_upload(payload):
     modality = payload.get('modality')
     if modality == 'images':
         from PIL import Image
+
         with Image.open(BytesIO(data)) as image:
             if image.width * image.height > 20_000_000:
                 raise ValueError('Image exceeds 20 megapixels')
             image.verify()
     elif modality == 'audio':
         import soundfile as sf
+
         with sf.SoundFile(BytesIO(data)) as audio:
             if audio.frames / audio.samplerate > 30:
                 raise ValueError('Audio query exceeds 30 seconds')
@@ -45,8 +54,20 @@ def query_upload(payload):
     return data
 
 
-def make_handler(service, media_loader=None):
+def indexed_images(service):
+    """Pick existing assets from the search snapshot, without scanning/writing S3."""
+    data = service.collection('images').get(limit=200, include=['metadatas'])
+    return [
+        {'source_key': validate_key(md['source_key']), 'species_id': md['species_id']}
+        for md in data['metadatas']
+        if md.get('source_key', '').startswith('images/')
+    ]
+
+
+def make_handler(service, media_loader=None, *, rag_service=None):
     jobs = threading.Lock()
+    rag_holder = [rag_service]
+
     class Handler(BaseHTTPRequestHandler):
         def setup(self):
             super().setup()
@@ -63,12 +84,18 @@ def make_handler(service, media_loader=None):
             self.send_header('Content-Length', str(len(body)))
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('Cache-Control', 'no-store')
-            self.send_header('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; frame-ancestors 'none'")
+            self.send_header(
+                'Content-Security-Policy',
+                "default-src 'self'; img-src 'self' data:; media-src 'self'; style-src 'self'; script-src 'self'; frame-ancestors 'none'",
+            )
             self.end_headers()
             self.wfile.write(body)
 
         def safe_host(self):
-            return self.headers.get('Host') in (f'127.0.0.1:{self.server.server_port}', f'localhost:{self.server.server_port}')
+            return self.headers.get('Host') in (
+                f'127.0.0.1:{self.server.server_port}',
+                f'localhost:{self.server.server_port}',
+            )
 
         def do_GET(self):
             if not self.safe_host():
@@ -77,7 +104,11 @@ def make_handler(service, media_loader=None):
             parsed = urlsplit(self.path)
             try:
                 if parsed.path == '/api/status':
-                    self.reply({'collections': service.status(), 'device': 'cpu', 'index_mode': 'snapshot'})
+                    self.reply(
+                        {'collections': service.status(), 'device': 'cpu', 'index_mode': 'snapshot'}
+                    )
+                elif parsed.path == '/api/rag/assets':
+                    self.reply({'assets': indexed_images(service)})
                 elif parsed.path == '/api/media':
                     key = validate_key(parse_qs(parsed.query).get('key', [''])[0])
                     if media_loader is None:
@@ -90,7 +121,10 @@ def make_handler(service, media_loader=None):
                     if filename is None:
                         self.reply({'error': 'Not found'}, status=404)
                         return
-                    self.reply((STATIC / filename).read_bytes(), mimetypes.guess_type(filename)[0] + '; charset=utf-8')
+                    self.reply(
+                        (STATIC / filename).read_bytes(),
+                        mimetypes.guess_type(filename)[0] + '; charset=utf-8',
+                    )
             except (ValueError, KeyError):
                 self.reply({'error': 'Invalid or unavailable media reference'}, status=400)
             except Exception:
@@ -108,7 +142,14 @@ def make_handler(service, media_loader=None):
 
         def handle_post(self):
             origin = self.headers.get('Origin')
-            if not self.safe_host() or (origin and origin not in (f'http://127.0.0.1:{self.server.server_port}', f'http://localhost:{self.server.server_port}')):
+            if not self.safe_host() or (
+                origin
+                and origin
+                not in (
+                    f'http://127.0.0.1:{self.server.server_port}',
+                    f'http://localhost:{self.server.server_port}',
+                )
+            ):
                 self.reply({'error': 'Invalid origin'}, status=403)
                 return
             if self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
@@ -129,42 +170,94 @@ def make_handler(service, media_loader=None):
                 if species is not None and (not isinstance(species, str) or len(species) > 100):
                     raise ValueError('Invalid species filter')
                 if path == '/api/search':
-                    result = service.text(payload.get('query'), mode=payload.get('mode', 'multimodal'),
-                                          limit=limit, species=species, modality=payload.get('filter') or None)
+                    result = service.text(
+                        payload.get('query'),
+                        mode=payload.get('mode', 'multimodal'),
+                        limit=limit,
+                        species=species,
+                        modality=payload.get('filter') or None,
+                    )
                 elif path == '/api/similar':
-                    result = service.by_record(payload.get('id'), payload.get('space'), limit=limit,
-                                               species=species, modality=payload.get('filter') or None,
-                                               same_modality=bool(payload.get('same_modality')),
-                                               mixed=bool(payload.get('mixed')))
+                    result = service.by_record(
+                        payload.get('id'),
+                        payload.get('space'),
+                        limit=limit,
+                        species=species,
+                        modality=payload.get('filter') or None,
+                        same_modality=bool(payload.get('same_modality')),
+                        mixed=bool(payload.get('mixed')),
+                    )
                 elif path == '/api/upload':
                     data = query_upload(payload)
-                    result = service.media(data, payload['modality'], mixed=bool(payload.get('mixed')), limit=limit, species=species)
+                    result = service.media(
+                        data,
+                        payload['modality'],
+                        mixed=bool(payload.get('mixed')),
+                        limit=limit,
+                        species=species,
+                    )
                 elif path == '/api/describe':
                     from multimodal_tasks.generate import describe
+
                     data = query_upload({**payload, 'modality': 'images'})
                     # No implicit network downloads from a web request.
                     with service.lock:
                         service.encoders.release_all()
                     result = describe(data, service, limit=limit)
+                elif path == '/api/rag':
+                    from multimodal_tasks.rag import RagService
+
+                    key, encoded = payload.get('source_key'), payload.get('data')
+                    if key and encoded:
+                        raise ValueError('Choose a stored image or an uploaded image')
+                    data = None
+                    if key:
+                        key = validate_key(key)
+                        if not key.startswith('images/') or media_loader is None:
+                            raise ValueError('Select an available Trusted image')
+                        data, _ = media_loader(key)
+                        query_upload(
+                            {'data': base64.b64encode(data).decode('ascii'), 'modality': 'images'}
+                        )
+                    elif encoded:
+                        data = query_upload({'data': encoded, 'modality': 'images'})
+                    if rag_holder[0] is None:
+                        rag_holder[0] = RagService(service)
+                    result = rag_holder[0].answer(
+                        payload.get('question'), image=data, input_source_key=key or None
+                    )
                 else:
                     self.reply({'error': 'Not found'}, status=404)
                     return
                 self.reply({'results': result})
             except (ValueError, TypeError, KeyError) as exc:
                 self.reply({'error': str(exc)[:200]}, status=400)
+            except RagResourceError as exc:
+                self.reply({'error': str(exc)}, status=503)
             except Exception:
                 LOGGER.exception('Query failed')
-                self.reply({'error': 'Query unavailable. Check local model cache and server logs.'}, status=503)
+                self.reply(
+                    {'error': 'Query unavailable. Check local model cache and server logs.'},
+                    status=503,
+                )
+
     return Handler
 
 
 def load_media(key):
     from exploitation_zone.source import TrustedRepository, create_minio_client
-    repository = TrustedRepository(create_minio_client(), os.getenv('ECOSENTINEL_TRUSTED_BUCKET', 'trusted-zone'))
+
+    repository = TrustedRepository(
+        create_minio_client(), os.getenv('ECOSENTINEL_TRUSTED_BUCKET', 'trusted-zone')
+    )
     info = repository.source_info(key)
     if info['size'] > 200 * 1024 * 1024:
         raise ValueError('Media exceeds serving size limit')
-    return repository.get(key), {'images': 'image/jpeg', 'audio': 'audio/flac', 'text': 'text/plain; charset=utf-8'}[key.split('/')[0]]
+    return repository.get(key), {
+        'images': 'image/jpeg',
+        'audio': 'audio/flac',
+        'text': 'text/plain; charset=utf-8',
+    }[key.split('/')[0]]
 
 
 def main(argv=None):
@@ -175,6 +268,7 @@ def main(argv=None):
     os.environ.setdefault('HF_HUB_OFFLINE', '1')
     os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')
     from multimodal_tasks.search import SearchService
+
     service = SearchService(args.index)
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
     with ThreadingHTTPServer(('127.0.0.1', args.port), make_handler(service, load_media)) as server:

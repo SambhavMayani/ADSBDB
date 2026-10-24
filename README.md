@@ -1,153 +1,82 @@
 # EcoSentinel
 
-Plataforma multimodal de fauna ibérica para la P1 de ADSDB (UPC). Gestiona imágenes, audio y texto con una arquitectura por zonas, trazabilidad, controles de calidad y búsquedas con modelos preentrenados en CPU.
+**Iberian wildlife retrieval and evidence-based question answering.** ADSDB P1, UPC.
 
-## Estado comprobado
+Authors: **Mario Rodrigo, Sambhav and Wassim**.
 
-- 198 activos aceptados en Trusted: 100 imágenes, 34 audios y 64 textos.
-- Cinco colecciones persistentes y 6.021 embeddings en `data/chromadb/`.
-- Orquestación secuencial con logs, bloqueo, límites de tiempo y conciliación final.
-- Tasks 1 y 2: consultas monomodales, multimodales y combinación de resultados con procedencia.
-- Task 3: descripción generativa con BLIP y recuperación de referencias.
-- Interfaz local con tres recorridos para probar las Tasks.
-- Pruebas aisladas, integración con S3 y Chroma reales y aceptación con modelos CPU.
-- GitHub Actions configurado para Windows y Ubuntu. La ejecución remota se comprueba en GitHub tras publicar la rama; no se confunde con los resultados locales.
+EcoSentinel turns images, field recordings and species descriptions into a traceable corpus. It implements four data zones, same-modality search (Task 1), cross-modality search (Task 2), and retrieval-augmented generation (Task 3), with a local web interface.
 
-Los resultados y límites detallados están en [validación](docs/testing_and_validation.md). El proyecto prioriza calidad del sistema; la similitud no equivale a identificación biológica verificada.
+**Start here:** [user and assessor guide](docs/user_guide.md) · [project report](docs/ecosentinel_report.pdf) · [requirements](docs/p1_requirements.md) · [validation](docs/testing_and_validation.md).
 
-## Arquitectura
+## Architecture
 
 ```text
-Adquisición opcional → raw_dataset → Security Gate
-    → Temporal Landing → Persistent Landing
-    → Formatted (JPEG / FLAC PCM16 / TXT UTF-8)
-    → Trusted (calidad, duplicados y manifiestos)
-    → Exploitation (CLIP / CLAP / E5, Chroma persistente)
-    → Tasks 1, 2 y 3 → interfaz local
+Optional acquisition → Security Gate → Temporal / Persistent Landing
+    → Formatted (JPEG / FLAC PCM16 / UTF-8 text)
+    → Trusted (quality, provenance, deduplication and reports)
+    → Exploitation (five persistent Chroma collections)
+    → Task 1 / Task 2 / Task 3 → local web interface
 ```
 
-Persistent conserva los originales. Una revalidación de calidad no elimina automáticamente los activos previamente aceptados. Las consultas usan una **copia independiente del índice**; no abren la persistencia original mediante el cliente Chroma.
+The reference corpus has **198 accepted assets**: 100 images, 34 recordings and 64 texts. Its five collections contain **6,021 embeddings**. Counts describe the audited local corpus, not a fresh download. Data, model weights, `.env`, indexes and runtime reports are excluded from Git. A fresh clone can run offline tests without any of them.
 
-## Instalación: Windows / Git Bash
+## Install and verify
 
-Requisitos: Python 3.11 de 64 bits, Docker Desktop para MinIO y un entorno virtual. Desde la raíz del repositorio:
+Use **64-bit Python 3.11**. Commands are for **Git Bash on Windows**, from the repository root. Docker Desktop is needed only for object storage and integration tests.
 
 ```bash
+git clone https://github.com/SambhavMayani/ADSBDB.git
+cd ADSBDB
 python -m venv .venv
 source .venv/Scripts/activate
 python -m pip install -r requirements.txt
 python -m pip check
-cp -n .env.example .env
-```
-
-En PowerShell, activar con `.\.venv\Scripts\Activate.ps1`. Configurar las credenciales **solo en `.env`**, sin subirlo a Git. El único fichero de dependencias es `requirements.txt`; contiene las versiones directas comprobadas. No se requieren CUDA ni Tesseract para el funcionamiento básico.
-
-En Linux, se puede instalar primero la rueda CPU de la versión de PyTorch indicada en `requirements.txt` desde el índice oficial de PyTorch y después instalar el mismo requirements. La CI usa ese procedimiento para evitar dependencias CUDA innecesarias. La reproducción completa de versiones transitivas debe verificarse en el entorno nuevo; un pin directo no sustituye esa comprobación.
-
-```bash
-docker compose up -d
-python orchestration/check_minio_connection.py
-```
-
-La imagen del servicio actual es SILO, compatible con la API S3 de MinIO. Se conserva la configuración y el volumen existentes. **No utilizar `docker compose down -v` sobre el proyecto de datos.**
-
-## Primera ejecución segura sobre un repositorio con datos
-
-```bash
-# Plan puro: no abre servicios ni modifica datos
+python -m ruff check .
+python -m ruff format --check .
+python -m pytest -q
 python -m orchestration.pipeline --plan
-
-# Verificación de lectura, sin crear embeddings
-python -m orchestration.reconcile
-
-# Inventario SQLite de solo lectura
-python -m orchestration.audit --source data/chromadb
 ```
 
-No es necesario reindexar el corpus validado. Cambiar modelos o contratos v1 requiere una estrategia de versionado explícita.
-
-## Probar las Tasks y la interfaz
-
-Con los escritores del índice detenidos, crear una instantánea **una vez**:
+There is **one requirements file**. On Linux, activate with `source .venv/bin/activate` and install `torch==2.14.1` from `https://download.pytorch.org/whl/cpu` before the same requirements. No CUDA, paid model API or Tesseract installation is required for the baseline. Dependency installation requires Internet; default tests do not download models or access production MinIO.
 
 ```bash
+# Isolated integration: separate port, test credentials, no production volume.
+docker compose -p ecosentinel-tests -f docker-compose.test.yml up -d
+curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:19000/minio/health/ready
+python -m pytest -m integration -q
+docker compose -p ecosentinel-tests -f docker-compose.test.yml down
+```
+
+## Run the existing corpus
+
+Configure `.env` locally from `.env.example`, then start storage. Do not replace an existing `.env` or remove Docker volumes. The pinned S3-compatible container is SILO; Python uses the MinIO/S3 API.
+
+```bash
+cp -n .env.example .env
+# Set local credentials before starting a new storage service.
+docker compose up -d
+python -m orchestration.reconcile
+python -m orchestration.audit --source data/chromadb
+# Once, with index writers stopped; omit if the snapshot already exists.
 python -m orchestration.audit --source data/chromadb --snapshot data/search_index
-python -m multimodal_tasks.search --status
 python -m webapp.server
 ```
 
-Abrir `http://127.0.0.1:8765`. La herramienta rechaza sobrescribir una instantánea existente: para refrescarla, usar otra ruta y `--index RUTA` al iniciar el servidor. Los medios siguen leyéndose del MinIO local.
+Open **http://127.0.0.1:8765**. Queries use a separate snapshot, `data/search_index/`; the original index is protected. External query files stay in memory. Model preparation, fresh-clone setup and UI examples are in the [user guide](docs/user_guide.md).
 
-- **Explorar por texto:** texto a texto, espacios mixtos o todas las modalidades.
-- **Buscar similares:** imagen/audio de consulta; misma modalidad o modalidades combinadas.
-- **Describir una imagen:** BLIP genera una descripción y recupera referencias.
-- Cada resultado permite consultar procedencia y buscar activos relacionados.
-
-Los encoders de búsqueda requieren sus pesos en la caché local. Los commits observados están en `config/model_manifest.json` y se usan para resolver las revisiones nulas históricas sin cambiar fingerprints. La preparación no indexa datos:
-
-```bash
-python -m exploitation_zone.prepare_models --download
-# Verificar después sin permitir descargas
-python -m exploitation_zone.prepare_models
-```
-
-El flag `--download` autoriza Internet para preparar pesos; la operación habitual es offline. Para BLIP:
-
-```bash
-python -m multimodal_tasks.generate ruta/imagen.jpg --allow-model-download
-```
-
-No se necesitan claves de un proveedor generativo. Las consultas externas no se guardan ni se indexan.
-
-## Pipeline automático
-
-La siguiente operación **escribe** en las zonas e indexa entradas pendientes. Revisar primero el plan y preservar una copia coherente del índice:
+## Pipeline and recovery
 
 ```bash
 python -m orchestration.pipeline --plan
 python -m orchestration.pipeline --run
-```
-
-La adquisición de nuevos datos desde Internet solo se añade con `--with-acquisition`. La preparación de pesos es una decisión independiente. Para reanudar después de corregir un fallo:
-
-```bash
+# After fixing a failure, resume at the required stage:
 python -m orchestration.pipeline --run --from-stage exploitation
 ```
 
-La recuperación se apoya en objetos, marcadores y registros completos; no salta un paso solo porque un informe anterior lo marcó como correcto. El borrado de Temporal está desactivado por defecto; su limpieza explícita solo se permite tras verificar copia, procedencia y checksum. [Detalles](docs/pipeline_orchestration.md).
+`--run` writes missing outputs; it is unnecessary for an already reconciled corpus. Acquisition is added only with `--with-acquisition`. Compatible embeddings are reused. Logs and atomic JSON reports explain failures; reconciliation checks hashes and segment coverage. See [orchestration](docs/pipeline_orchestration.md).
 
-## Pruebas reproducibles
+## Quality and scope
 
-```bash
-# Pruebas sin Internet ni MinIO de producción
-python -m pytest -q
+GitHub Actions defines Windows/Linux offline checks, static analysis, formatting, a coverage floor and isolated Linux S3 integration. Local results and remote workflow results are reported separately. [Validation](docs/testing_and_validation.md) records outcomes and limits; [documentation](docs/README.md) explains each zone and Task.
 
-# Servicio de prueba separado: puerto 19000, sin volumen de producción
-docker compose -p ecosentinel-tests -f docker-compose.test.yml up -d
-python -m pytest -m integration -q
-
-# Aceptación CLI completa con modelos reales ya en caché y datos sintéticos
-python -m orchestration.smoke --run
-python -m orchestration.smoke --run
-
-# Cerrar únicamente el servicio de prueba
-docker compose -p ecosentinel-tests -f docker-compose.test.yml down
-```
-
-La integración usa buckets efímeros con nombres controlados y nunca el puerto 9000. La aceptación de tu corpus existente utiliza lecturas y una copia del índice:
-
-```bash
-python -m orchestration.validate_reference --models --task3
-```
-
-Los informes de tests, logs y evidencias locales se guardan en `reports/validation/`; datos, pesos, secretos e índices se excluyen de Git. Los informes Trusted se conservan fechados y deben interpretarse según el dataset de cada ejecución.
-
-## Documentación
-
-El [índice de `docs/`](docs/README.md) organiza los documentos de Landing, Formatted, Trusted, Exploitation, Tasks, operación, pruebas, requisitos oficiales y demostración. `docs/decision_log.md` conserva las decisiones históricas y añade las nuevas sin renumerarlas.
-
-## Límites conocidos
-
-No existe benchmark anotado de precisión taxonómica, ni transacción distribuida entre todas las zonas. La lectura del corpus para comprobar idempotencia sigue teniendo coste. El audio se decodifica por archivo; el consumo no es constante para duraciones arbitrarias. Las consultas usan una instantánea que se refresca explícitamente. La web está destinada a ejecución local, sin publicación en Internet.
-
-Al recrear el servicio de pruebas se pierde su almacenamiento S3 efímero. Para una sesión nueva, utilizar `python -m orchestration.smoke --run --workdir data/smoke-session-02` (una carpeta aún no utilizada) y repetir con esa misma ruta. No reutilizar el índice de una sesión cuyo S3 fue retirado; conservarlo como evidencia.
+Similarity is not a species probability. RAG validates quoted evidence but does not prove biological truth or conclusively identify an external photograph. This CPU-oriented prototype is intended for local use. [Data and model provenance](docs/data_sources.md) records sources and reuse considerations.

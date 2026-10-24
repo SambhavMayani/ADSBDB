@@ -8,11 +8,13 @@ Run from repository root:
 
 A real run is always explicit. Acquisition from external APIs is opt-in.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import math
 import subprocess
 import sys
 import time
@@ -40,12 +42,20 @@ class Step:
     module: bool = False
 
     def argv(self, executable: str = sys.executable) -> list[str]:
-        return ([executable, '-m', self.target, *self.arguments] if self.module
-                else [executable, self.target, *self.arguments])
+        return (
+            [executable, '-m', self.target, *self.arguments]
+            if self.module
+            else [executable, self.target, *self.arguments]
+        )
 
 
-def build_plan(*, with_acquisition: bool = False, device: str = 'cpu',
-               from_stage: str = 'storage', through_stage: str = 'verification') -> list[Step]:
+def build_plan(
+    *,
+    with_acquisition: bool = False,
+    device: str = 'cpu',
+    from_stage: str = 'storage',
+    through_stage: str = 'verification',
+) -> list[Step]:
     """Build a deterministic plan; no file I/O, model imports, or network access."""
     if from_stage not in STAGES or through_stage not in STAGES:
         raise ValueError('Unknown stage')
@@ -61,26 +71,59 @@ def build_plan(*, with_acquisition: bool = False, device: str = 'cpu',
         Step('storage', 'initialize-buckets', 'orchestration/initialize_storage.py'),
     ]
     if with_acquisition:
-        steps.extend([
-            Step('landing', 'download-images', 'landing_zone/data_acquisition/download_wikimedia_images.py'),
-            Step('landing', 'download-audio', 'landing_zone/data_acquisition/download_xeno_canto_audio.py'),
-            Step('landing', 'download-texts', 'landing_zone/data_acquisition/download_species_texts.py'),
-        ])
-    steps.extend([
-        Step('landing', 'temporal-ingest', 'landing_zone/temporal_landing/ingest_local_data.py'),
-        Step('landing', 'persistent-promote', 'landing_zone/persistent_landing/process_to_persistent.py'),
-        Step('formatted', 'format-images', 'formatted_zone/format_images.py'),
-        Step('formatted', 'format-audio', 'formatted_zone/format_audio.py'),
-        Step('formatted', 'format-text', 'formatted_zone/format_text.py'),
-        Step('trusted', 'validate-images', 'trusted_zone/validate_images.py'),
-        Step('trusted', 'validate-audio', 'trusted_zone/validate_audio.py'),
-        Step('trusted', 'validate-text', 'trusted_zone/validate_text.py'),
-    ])
-    steps.extend(Step('exploitation', f'index-{space}', 'exploitation_zone.indexer',
-                      ('--space', space, '--device', device), module=True)
-                 for space in SPACES)
+        steps.extend(
+            [
+                Step(
+                    'landing',
+                    'download-images',
+                    'landing_zone/data_acquisition/download_wikimedia_images.py',
+                ),
+                Step(
+                    'landing',
+                    'download-audio',
+                    'landing_zone/data_acquisition/download_xeno_canto_audio.py',
+                ),
+                Step(
+                    'landing',
+                    'download-texts',
+                    'landing_zone/data_acquisition/download_species_texts.py',
+                ),
+            ]
+        )
+    steps.extend(
+        [
+            Step(
+                'landing', 'temporal-ingest', 'landing_zone/temporal_landing/ingest_local_data.py'
+            ),
+            Step(
+                'landing',
+                'persistent-promote',
+                'landing_zone/persistent_landing/process_to_persistent.py',
+            ),
+            Step('formatted', 'format-images', 'formatted_zone/format_images.py'),
+            Step('formatted', 'format-audio', 'formatted_zone/format_audio.py'),
+            Step('formatted', 'format-text', 'formatted_zone/format_text.py'),
+            Step('trusted', 'validate-images', 'trusted_zone/validate_images.py'),
+            Step('trusted', 'validate-audio', 'trusted_zone/validate_audio.py'),
+            Step('trusted', 'validate-text', 'trusted_zone/validate_text.py'),
+        ]
+    )
+    steps.extend(
+        Step(
+            'exploitation',
+            f'index-{space}',
+            'exploitation_zone.indexer',
+            ('--space', space, '--device', device),
+            module=True,
+        )
+        for space in SPACES
+    )
     steps.append(Step('verification', 'reconcile', 'orchestration.reconcile', module=True))
-    return [step for step in steps if STAGES.index(from_stage) <= STAGES.index(step.stage) <= STAGES.index(through_stage)]
+    return [
+        step
+        for step in steps
+        if STAGES.index(from_stage) <= STAGES.index(step.stage) <= STAGES.index(through_stage)
+    ]
 
 
 def validate_targets(root: Path, steps: Sequence[Step]) -> None:
@@ -94,7 +137,11 @@ def validate_targets(root: Path, steps: Sequence[Step]) -> None:
 def print_plan(steps: Sequence[Step]) -> None:
     print(f'EcoSentinel plan: {len(steps)} steps; NO stages executed')
     for index, step in enumerate(steps, 1):
-        command = ' '.join(['python', '-m'] + [step.target, *step.arguments]) if step.module else ' '.join(['python', step.target, *step.arguments])
+        command = (
+            ' '.join(['python', '-m'] + [step.target, *step.arguments])
+            if step.module
+            else ' '.join(['python', step.target, *step.arguments])
+        )
         print(f'  {index:02d}. [{step.stage:12}] {step.name:20} {command}')
     print('External downloads occur only with --with-acquisition.')
     print('Execute explicitly with --run; results are persisted by their respective zones.')
@@ -118,31 +165,62 @@ def _run_process(argv: Sequence[str], root: Path, output_path: Path) -> int:
     timer = None
     expired = threading.Event()
     timeout = float(os.getenv('ECOSENTINEL_STEP_TIMEOUT', '3600'))
-    if timeout <= 0:
-        raise ValueError('Step timeout must be positive')
-    env = {**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PYTHONUTF8': '1',
-           'PYTHONUNBUFFERED': '1', 'HF_HUB_OFFLINE': os.getenv('HF_HUB_OFFLINE', '1'),
-           'TRANSFORMERS_OFFLINE': os.getenv('TRANSFORMERS_OFFLINE', '1')}
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError('Step timeout must be finite and positive')
+    env = {
+        **os.environ,
+        'PYTHONIOENCODING': 'utf-8',
+        'PYTHONUTF8': '1',
+        'PYTHONUNBUFFERED': '1',
+        'HF_HUB_OFFLINE': os.getenv('HF_HUB_OFFLINE', '1'),
+        'TRANSFORMERS_OFFLINE': os.getenv('TRANSFORMERS_OFFLINE', '1'),
+    }
     try:
         with output_path.open('w', encoding='utf-8') as logfile:
-            proc = subprocess.Popen(list(argv), cwd=str(root), stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, text=True, encoding='utf-8',
-                                    errors='replace', bufsize=1, env=env,
-                                    start_new_session=os.name != 'nt',
-                                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
+            proc = subprocess.Popen(
+                list(argv),
+                cwd=str(root),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                bufsize=1,
+                env=env,
+                start_new_session=os.name != 'nt',
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0,
+            )
+
             def stop_on_timeout():
                 expired.set()
                 _stop_process(proc)
+
             timer = threading.Timer(timeout, stop_on_timeout)
             timer.daemon = True
             timer.start()
             assert proc.stdout is not None
-            secrets = [value for key, value in env.items()
-                       if any(word in key.upper() for word in ('PASSWORD', 'SECRET', 'TOKEN', 'API_KEY', 'WEBHOOK')) and len(value) >= 6]
+            secrets = [
+                value
+                for key, value in env.items()
+                if any(
+                    word in key.upper()
+                    for word in ('PASSWORD', 'SECRET', 'TOKEN', 'API_KEY', 'WEBHOOK')
+                )
+                and len(value) >= 6
+            ]
             try:
                 from dotenv import dotenv_values
-                secrets += [value for key, value in dotenv_values(root / '.env').items()
-                            if value and len(value) >= 6 and any(word in key.upper() for word in ('PASSWORD', 'SECRET', 'TOKEN', 'API_KEY', 'WEBHOOK'))]
+
+                secrets += [
+                    value
+                    for key, value in dotenv_values(root / '.env').items()
+                    if value
+                    and len(value) >= 6
+                    and any(
+                        word in key.upper()
+                        for word in ('PASSWORD', 'SECRET', 'TOKEN', 'API_KEY', 'WEBHOOK')
+                    )
+                ]
             except ImportError:
                 pass
             for line in proc.stdout:
@@ -171,8 +249,12 @@ def _stop_process(proc):
     if proc.poll() is not None:
         return
     if os.name == 'nt':
-        subprocess.run(['taskkill', '/PID', str(proc.pid), '/T', '/F'],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        subprocess.run(
+            ['taskkill', '/PID', str(proc.pid), '/T', '/F'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
     else:
         try:
             os.killpg(proc.pid, signal.SIGKILL)
@@ -200,12 +282,16 @@ def _exclusive_run_lock(folder: Path):
         try:
             if os.name == 'nt':
                 import msvcrt
+
                 msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
             else:
                 import fcntl
+
                 fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as exc:
-            raise RuntimeError(f'Another EcoSentinel pipeline may already be running ({lock_path})') from exc
+            raise RuntimeError(
+                f'Another EcoSentinel pipeline may already be running ({lock_path})'
+            ) from exc
         try:
             yield
         finally:
@@ -216,10 +302,14 @@ def _exclusive_run_lock(folder: Path):
                 fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
-def run_pipeline(steps: Sequence[Step], *, root: Path = PROJECT_ROOT,
-                 report_dir: Path | None = None,
-                 runner: Callable[[Sequence[str], Path, Path], int] = _run_process,
-                 executable: str = sys.executable) -> tuple[int, Path]:
+def run_pipeline(
+    steps: Sequence[Step],
+    *,
+    root: Path = PROJECT_ROOT,
+    report_dir: Path | None = None,
+    runner: Callable[[Sequence[str], Path, Path], int] = _run_process,
+    executable: str = sys.executable,
+) -> tuple[int, Path]:
     """Fail-fast pipeline with an exclusive OS lock to prevent concurrent writes."""
     root = Path(root).resolve()
     if not steps:
@@ -232,14 +322,19 @@ def run_pipeline(steps: Sequence[Step], *, root: Path = PROJECT_ROOT,
     lock_folder = root / 'reports' / 'orchestration'
     lock_folder.mkdir(parents=True, exist_ok=True)
     with _exclusive_run_lock(lock_folder):
-        return _run_pipeline_impl(steps, root=root, report_dir=folder,
-                                  runner=runner, executable=executable)
+        return _run_pipeline_impl(
+            steps, root=root, report_dir=folder, runner=runner, executable=executable
+        )
 
 
-def _run_pipeline_impl(steps: Sequence[Step], *, root: Path = PROJECT_ROOT,
-                 report_dir: Path | None = None,
-                 runner: Callable[[Sequence[str], Path, Path], int] = _run_process,
-                 executable: str = sys.executable) -> tuple[int, Path]:
+def _run_pipeline_impl(
+    steps: Sequence[Step],
+    *,
+    root: Path = PROJECT_ROOT,
+    report_dir: Path | None = None,
+    runner: Callable[[Sequence[str], Path, Path], int] = _run_process,
+    executable: str = sys.executable,
+) -> tuple[int, Path]:
     """Sequential fail-fast execution with a JSON audit trail written after every step.
 
     The runner is injectable for offline tests; no MinIO/ML dependency in this module.
@@ -252,14 +347,21 @@ def _run_pipeline_impl(steps: Sequence[Step], *, root: Path = PROJECT_ROOT,
     folder = folder if folder.is_absolute() else root / folder
     folder.mkdir(parents=True, exist_ok=True)
     # One run report per execution; never overwrite previous report.
-    identifier = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S_%fZ') + '_' + uuid.uuid4().hex[:8]
+    identifier = (
+        datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S_%fZ') + '_' + uuid.uuid4().hex[:8]
+    )
     report_file = folder / f'pipeline_{identifier}.json'
     report: dict = {
-        'schema_version': 1, 'started_at_utc': datetime.now(timezone.utc).isoformat(),
-        'finished_at_utc': None, 'status': 'running',
-        'python': executable, 'root': str(root),
-        'steps': [{'stage': s.stage, 'name': s.name, 'status': 'pending',
-                   'argv': s.argv(executable)} for s in steps],
+        'schema_version': 1,
+        'started_at_utc': datetime.now(timezone.utc).isoformat(),
+        'finished_at_utc': None,
+        'status': 'running',
+        'python': executable,
+        'root': str(root),
+        'steps': [
+            {'stage': s.stage, 'name': s.name, 'status': 'pending', 'argv': s.argv(executable)}
+            for s in steps
+        ],
     }
     _atomic_json_write(report_file, report)
     final_exit_code = 0
@@ -302,7 +404,11 @@ def _run_pipeline_impl(steps: Sequence[Step], *, root: Path = PROJECT_ROOT,
         for entry in report['steps']:
             if entry['status'] == 'pending':
                 entry['status'] = 'skipped'
-        report['status'] = 'completed' if final_exit_code == 0 else ('interrupted' if final_exit_code == 130 else 'failed')
+        report['status'] = (
+            'completed'
+            if final_exit_code == 0
+            else ('interrupted' if final_exit_code == 130 else 'failed')
+        )
         report['finished_at_utc'] = datetime.now(timezone.utc).isoformat()
         _atomic_json_write(report_file, report)
         print(f'\nPipeline status: {report["status"]}\nAudit report: {report_file}', flush=True)
@@ -312,17 +418,29 @@ def _run_pipeline_impl(steps: Sequence[Step], *, root: Path = PROJECT_ROOT,
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument('--plan', action='store_true', help='Print commands without doing I/O or modifying anything')
+    mode.add_argument(
+        '--plan', action='store_true', help='Print commands without doing I/O or modifying anything'
+    )
     mode.add_argument('--run', action='store_true', help='Execute the planned stages, fail-fast')
-    parser.add_argument('--with-acquisition', action='store_true', help='Opt in to external data downloads (requires API credentials)')
+    parser.add_argument(
+        '--with-acquisition',
+        action='store_true',
+        help='Opt in to external data downloads (requires API credentials)',
+    )
     parser.add_argument('--from-stage', choices=STAGES, default='storage')
     parser.add_argument('--through-stage', choices=STAGES, default='verification')
     parser.add_argument('--device', choices=('cpu', 'cuda', 'auto'), default='cpu')
-    parser.add_argument('--report-dir', type=Path, help='Directory for JSON audit reports and per-step logs')
+    parser.add_argument(
+        '--report-dir', type=Path, help='Directory for JSON audit reports and per-step logs'
+    )
     args = parser.parse_args(argv)
     try:
-        plan = build_plan(with_acquisition=args.with_acquisition, device=args.device,
-                          from_stage=args.from_stage, through_stage=args.through_stage)
+        plan = build_plan(
+            with_acquisition=args.with_acquisition,
+            device=args.device,
+            from_stage=args.from_stage,
+            through_stage=args.through_stage,
+        )
     except ValueError as exc:
         parser.error(str(exc))
     if args.plan:

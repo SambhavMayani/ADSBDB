@@ -1,0 +1,193 @@
+{
+  "recorded_at_utc": "2026-10-24T16:31:51.954178+00:00",
+  "environment": {
+    "os": "Windows",
+    "python": "3.11.2",
+    "device": "CPU"
+  },
+  "scope": "Local final review; not a remote CI result or a labelled biological accuracy evaluation.",
+  "base_commit": "e4c3d6ac0a2814bf41d49de39aca981163688fd1",
+  "uncommitted_working_tree": true,
+  "offline": {
+    "tests": 344,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 25.253,
+    "local_report": "reports/validation/delivery_offline.xml"
+  },
+  "integration": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 14.834,
+    "local_report": "reports/validation/delivery_integration.xml"
+  },
+  "search_fixture_stability": {
+    "tests": 38,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 9.373,
+    "local_report": "reports/validation/delivery_search_regression.xml"
+  },
+  "coverage_offline": {
+    "covered_statements": 3361,
+    "total_statements": 5266,
+    "percent": 63.82,
+    "local_report": "reports/validation/delivery_coverage.xml"
+  },
+  "coverage_combined": {
+    "covered_statements": 3752,
+    "total_statements": 5266,
+    "percent": 71.25,
+    "local_report": "reports/validation/delivery_coverage_combined.xml"
+  },
+  "cpu_pipeline": [
+    {
+      "status": "completed",
+      "steps_passed": 16,
+      "accepted_assets": 3,
+      "total_vectors": 7,
+      "index_step_order": [
+        "images",
+        "text",
+        "audio",
+        "image_text",
+        "audio_text"
+      ],
+      "new_or_updated_vectors": [
+        1,
+        1,
+        1,
+        2,
+        2
+      ],
+      "local_report": "data/delivery-smoke-20261024/reports/orchestration/pipeline_20261024T121847_286272Z_cddb9dd5.json",
+      "started_at_utc": "2026-10-24T12:18:47.286272+00:00",
+      "finished_at_utc": "2026-10-24T15:39:27.081989+00:00",
+      "step_seconds": {
+        "minio-connection": 1.386,
+        "initialize-buckets": 1.436,
+        "temporal-ingest": 1.7,
+        "persistent-promote": 1.699,
+        "format-images": 1.647,
+        "format-audio": 2.705,
+        "format-text": 1.523,
+        "validate-images": 4.13,
+        "validate-audio": 3.662,
+        "validate-text": 3.806,
+        "index-images": 25.383,
+        "index-text": 11932.701,
+        "index-audio": 19.507,
+        "index-image_text": 19.235,
+        "index-audio_text": 17.464,
+        "reconcile": 1.713
+      }
+    },
+    {
+      "status": "completed",
+      "steps_passed": 16,
+      "accepted_assets": 3,
+      "total_vectors": 7,
+      "index_step_order": [
+        "images",
+        "text",
+        "audio",
+        "image_text",
+        "audio_text"
+      ],
+      "new_or_updated_vectors": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "local_report": "data/delivery-smoke-20261024/reports/orchestration/pipeline_20261024T153927_569863Z_0e9d09d7.json",
+      "started_at_utc": "2026-10-24T15:39:27.570827+00:00",
+      "finished_at_utc": "2026-10-24T15:40:29.930635+00:00",
+      "step_seconds": {
+        "minio-connection": 1.379,
+        "initialize-buckets": 1.442,
+        "temporal-ingest": 1.644,
+        "persistent-promote": 1.679,
+        "format-images": 1.56,
+        "format-audio": 1.824,
+        "format-text": 1.552,
+        "validate-images": 4.194,
+        "validate-audio": 3.847,
+        "validate-text": 3.54,
+        "index-images": 7.417,
+        "index-text": 7.424,
+        "index-audio": 7.572,
+        "index-image_text": 7.8,
+        "index-audio_text": 7.701,
+        "reconcile": 1.695
+      }
+    }
+  ],
+  "timing_limitations": "The first CPU smoke records 11932.701 s for index-text; cause not established. These runs establish output/repetition behavior, not typical latency.",
+  "chroma_preservation": {
+    "checked_at_utc": "2026-10-24T16:26:38.292890+00:00",
+    "chroma_counts": {
+      "ecosentinel_audio_clap_v1": 357,
+      "ecosentinel_audio_text_clap_v1": 3254,
+      "ecosentinel_image_text_clip_v1": 1763,
+      "ecosentinel_images_clip_v1": 100,
+      "ecosentinel_text_e5_v1": 547
+    },
+    "original_chroma_matches_delivery_baseline": true,
+    "original_chroma_matches_pre_quality_baseline": true,
+    "comparison": "Read-only Chroma filenames, byte sizes and SHA-256; SQLite mode=ro, no Chroma client on original."
+  },
+  "minio_preservation": {
+    "checked_at_utc": "2026-10-24T16:26:45.621516+00:00",
+    "original_minio_inventory_unchanged": true,
+    "minio_objects": {
+      "landing-zone": 396,
+      "formatted-zone": 198,
+      "trusted-zone": 396
+    },
+    "comparison": "Read-only S3 listing: keys, sizes and ETags; no download, upload or deletion."
+  },
+  "static_checks": {
+    "ruff_check": "passed",
+    "ruff_format_check": {
+      "status": "passed",
+      "python_files": 73
+    },
+    "pip_check": "passed",
+    "javascript_syntax": "passed",
+    "pipeline_plan_steps": 16,
+    "git_diff_check": "passed",
+    "python_files_parsed": 73,
+    "broken_local_links": [],
+    "secret_value_matches_in_versionable_text_files": [],
+    "protected_paths_versionable": []
+  },
+  "native_rag": "docs/evidence/native_models.json; earlier real-model runs with unchanged policy, not rerun during formatting review",
+  "sha256": {
+    "config/rag.yaml": "72a7b3177d9ebca46d306fc6d2d3aa35bf42fcd5e8209000dc0e0c58d1f1e374",
+    "config/model_manifest.json": "68e58fcba4b23bd31dd9f750a5f4c685ec0033a6e227dc88d55adc67a4984200",
+    "requirements.txt": "4fe6f7e65eeee5cbeb6aa6236ec4392e31081991662e0f7cf723f443944a61ae",
+    "docs/ecosentinel_report.pdf": "50c4be64db06b645c8ef5f75249e803b1dbc780efd2dd1c5077d2860d9275e5c"
+  },
+  "report": {
+    "path": "docs/ecosentinel_report.pdf",
+    "physical_pages": 9,
+    "unnumbered_instructions_pages": 1,
+    "numbered_report_pages_including_cover": 8,
+    "all_pages_visually_reviewed": true
+  },
+  "remote_ci": "pending authors push and verification of the submitted commit",
+  "index_reuse": {
+    "method": "SQLite mode=ro, production VectorStore.is_complete with a read-only adapter; no Chroma client, encoders or writes.",
+    "assets": 198,
+    "collection_asset_checks": 460,
+    "vectors": 6021,
+    "failures": [],
+    "original_files_unchanged": true
+  }
+}

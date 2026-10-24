@@ -233,3 +233,44 @@ Suite offline con Chroma temporal y HTTP; integración S3 aislada con encoders d
 
 ### D70 — Procedencia completa y metadatos atómicos
 Los proveedores preservan `_metadata.json` mediante fsync y reemplazo atómico y fallan ante corrupción. Nuevas ingestas guardan un registro de adquisición separado y propagan su referencia. Los datos históricos no se reescriben para backfill automático. Coste: objetos de control adicionales y convivencia explícita con metadatos antiguos.
+
+
+## H. Task 3 RAG (24-10-2026)
+
+### D71 — Recuperar antes de generar
+Sustituye el alcance principal de D68: se conserva el captioning auxiliar, pero la Task 3 ahora recupera contexto E5/CLIP antes de invocar Qwen. Las imágenes se adaptan mediante BLIP y embeddings; Qwen recibe texto, no píxeles. No se afirma que sea un VLM conversacional. La entrada puede ser una imagen existente de Trusted, una subida o una pregunta textual.
+
+### D72 — Generador CPU GGUF oficial, versionado y verificado
+Qwen2.5-3B-Instruct-GGUF Q4_K_M, commit y SHA-256 fijados, con llama-cpp-python CPU precompilado. Se añade una dependencia de runtime justificada por las pruebas: BF16 e INT8 PyTorch se descartaron por lentitud y salidas inválidas. No se conserva conversión manual de pesos en producción. Se usa mmap, cero capas GPU, esquema JSON limitado a las fuentes y cierre explícito del contexto nativo. El control de memoria no garantiza un máximo de RSS; la parada entre tokens no equivale a un timeout duro de todo el proceso.
+
+### D73 — Citas verificadas y abstención
+El modelo selecciona IDs de unidades de evidencia permitidos por una gramática JSON y redacta sus afirmaciones. El servidor resuelve esos IDs a fuentes y citas literales de 24–240 caracteres; no depende de que el LLM copie el texto. Se exige que la cita exista en el extracto correcto; una salida inválida se descarta completa. Este control no prueba entailment semántico ni identidad de especie. La web utiliza textContent para contenido externo. Los informes de aceptación conservan salidas rechazadas como diagnóstico, no como respuestas válidas.
+
+### D74 — Contexto limitado y dominio conservador
+RRF por activo, fragmentos textuales E5 más amplios, referencia visual cuando existe y límites de fuentes/caracteres/tokens. Solo un nombre completo explícito de especie produce un filtro. Un vocabulario de dominio puede abstenerse antes del LLM; es una heurística con falsos positivos/negativos posibles, no un detector OOD calibrado. Los nombres compuestos no aportan adjetivos genéricos aislados como red.
+
+### D75 — Protección de datos y evidencias diferenciadas
+El RAG consulta una copia y lee Trusted; no añade vectores ni escribe MinIO. Las exportaciones JSON rechazan destinos en data/, minio_data/ y .git/. Las pruebas offline inyectan modelos, prueban HTTP y Chroma temporal y bloquean producción. La aceptación de modelos reales es separada y registra fallos reales, tiempos, citas y hashes originales. No se declara una validación satisfactoria por haber recibido cualquier texto del LLM.
+
+### D76 — Separar fallo técnico y abstención documental
+Una reproducción del caso de rana produjo 35 tokens y un JSON abierto al alcanzar 120 segundos. `invalid_json` no demostraba falta de evidencia. Se conserva el límite temporal y se reduce el contexto del prompt a ocho unidades/1.600 caracteres; las referencias completas permanecen visibles. `status=error` distingue tiempo, tokens y validación de `status=abstained`. No se reparan salidas truncadas. Las frases y unidades con finales claramente incompletos se rechazan, sin añadir continuaciones.
+
+### D77 — Recuperación híbrida por aspecto y fragmento
+Aclara D74: las consultas sobre candidatas visuales pueden acotarse a esas etiquetas como hipótesis, manteniendo una búsqueda global de respaldo. Se separan hábitat, dieta y comportamiento para recuperar pasajes diferentes. La lectura léxica está limitada a 128 registros por candidata, sin vectores ni nuevos modelos, e informa si se trunca. RRF mantiene una contribución por activo y lista; el contexto admite hasta dos fragmentos de ese activo, con IDs distintos. Así la deduplicación para búsqueda no elimina información complementaria necesaria para RAG.
+
+### D78 — Candidatas visibles y preguntas naturales
+Las etiquetas de las dos primeras coincidencias visuales se presentan como candidatas del corpus, sin porcentajes de confianza. Se conservan aunque falle Qwen. Las preguntas de identidad permiten una sola afirmación condicional respaldada por texto; las multipartes hasta dos aspectos diferentes. La gramática y el validador limitan las afirmaciones a 240 caracteres. Esta decisión no convierte similitud en identificación confirmada ni demuestra entailment semántico.
+
+### D79 — Cobertura explícita de preguntas multipartes
+No basta con JSON válido: el generador podía responder dos veces sobre hábitat y omitir la dieta. La gramática incorpora posiciones por aspecto, con IDs de evidencia acotados léxicamente. Una posición `null` expresa falta de respaldo y produce una respuesta parcial visible. Esas ausencias se conservan en el informe; no se confunden con afirmaciones inválidas ni se proclama cobertura completa. Se mantienen el presupuesto global y una sola carga del modelo.
+
+## I. Cierre de calidad y entrega (24-10-2026)
+
+### D80 — Estática y formato reproducibles
+Ruff 0.14.2 en el único `requirements.txt`, reglas E4/E7/E9/F y formato común. Los pocos E402 permitidos corresponden al bootstrap de scripts heredados ejecutables directamente; no se desactiva la regla globalmente. CI comprueba formato sin modificar archivos y exige 60 % de cobertura offline. Se mantiene todo el código de adquisición y los CLI dentro de la medición. Coste: un diff de formato amplio, separado conceptualmente de las correcciones funcionales y respaldado por la suite completa.
+
+### D81 — Compleción verificable y límites numéricos finitos
+La idempotencia vectorial exige IDs únicos y cobertura exacta de las partes `0..N-1`, además del hash de contenido/política y el número de registros. Un conteo correcto no demuestra que todas las partes estén presentes. Se rechazan booleanos, NaN e infinitos en los controles numéricos relevantes. Formatted y Trusted delegan sus fábricas públicas al mismo cliente S3 acotado, conservando las interfaces existentes. No cambian los contratos de las colecciones ni se regeneran embeddings compatibles.
+
+### D82 — Entrega académica y evidencia portable
+Una memoria PDF en inglés de ocho páginas, incluida la portada, y una hoja inicial de instrucciones excluida del límite oficial; el Markdown conserva su contenido editable. Un manual separado explica comandos Git Bash y casos de interfaz. Los resúmenes de calidad y validación se versionan en `docs/evidence/`, mientras que los informes completos, datos y pesos siguen ignorados. Se distingue una demostración técnica sintética de la reproducción exacta del corpus, que requiere un traspaso de datos autorizado. Coste: los autores deben coordinar ese acceso y comprobar la CI del commit publicado.

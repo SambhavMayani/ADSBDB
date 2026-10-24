@@ -46,5 +46,6 @@ chroma_data/
 .pytest_cache/
 .coverage*
 htmlcov/
+.ruff_cache/
 .env.*
 !.env.example

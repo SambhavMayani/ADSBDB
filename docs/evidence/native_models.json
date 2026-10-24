@@ -1,0 +1,61 @@
+{
+  "model": "Qwen/Qwen2.5-3B-Instruct-GGUF",
+  "revision": "7dabda4d13d513e3e842b20f0d435c732f172cbe",
+  "policy_sha256": "dc22e0ec07d5ea7097a25585821ddb345c28ccfd7092ea56554c1bdc8b50124b",
+  "status": "completed",
+  "original_index_unchanged": true,
+  "snapshot_counts_unchanged": true,
+  "duration_seconds": 292.489,
+  "recorded_at": "2026-10-24",
+  "scope": "Five CLI cases plus a separate real browser case; qualitative checks, not an accuracy benchmark.",
+  "cases": [
+    {
+      "case": "habitat",
+      "passed": true,
+      "status": "answered",
+      "reason": "validated_citations",
+      "duration_seconds": 90.277
+    },
+    {
+      "case": "stored-image",
+      "passed": true,
+      "status": "answered",
+      "reason": "validated_citations",
+      "duration_seconds": 68.388
+    },
+    {
+      "case": "frog-identification",
+      "passed": true,
+      "status": "answered",
+      "reason": "validated_citations",
+      "duration_seconds": 80.644
+    },
+    {
+      "case": "unsupported",
+      "passed": true,
+      "status": "abstained",
+      "reason": "model_abstained",
+      "duration_seconds": 50.659
+    },
+    {
+      "case": "out-of-domain",
+      "passed": true,
+      "status": "abstained",
+      "reason": "query_domain_unrecognized",
+      "duration_seconds": 0.011
+    }
+  ],
+  "browser_case": {
+    "verification": "Real browser request to the final local API: stored Trusted frog; BLIP, CLIP, E5 and Qwen, no model stubs.",
+    "status": "answered",
+    "reason": "validated_citations",
+    "candidate": "pelophylax_perezi",
+    "input_tokens": 984,
+    "output_tokens": 133,
+    "generation_seconds": 76.139,
+    "total_seconds": 131.8,
+    "evidence_units": 8,
+    "evidence_chars": 1303,
+    "limitations": "One qualitative example; not a taxonomic identification or an accuracy benchmark. Original user photo unavailable."
+  }
+}

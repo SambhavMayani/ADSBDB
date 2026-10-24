@@ -1,4 +1,5 @@
 """Read-only inventories and byte-for-byte snapshots; never instantiate Chroma on the source."""
+
 from __future__ import annotations
 import argparse
 import hashlib
@@ -19,7 +20,10 @@ def inventory(path: Path) -> dict:
             with file.open('rb') as stream:
                 for chunk in iter(lambda: stream.read(1024 * 1024), b''):
                     digest.update(chunk)
-            result[file.relative_to(path).as_posix()] = {'bytes': file.stat().st_size, 'sha256': digest.hexdigest()}
+            result[file.relative_to(path).as_posix()] = {
+                'bytes': file.stat().st_size,
+                'sha256': digest.hexdigest(),
+            }
     return result
 
 
@@ -27,9 +31,11 @@ def counts(path: Path) -> dict:
     """SQLite mode=ro avoids startup migrations and HNSW writes in the source."""
     uri = (Path(path).resolve() / 'chroma.sqlite3').as_uri() + '?mode=ro'
     with sqlite3.connect(uri, uri=True) as connection:
-        return dict(connection.execute('''SELECT c.name, count(e.id) FROM collections c
+        return dict(
+            connection.execute("""SELECT c.name, count(e.id) FROM collections c
             JOIN segments s ON s.collection=c.id LEFT JOIN embeddings e ON e.segment_id=s.id
-            GROUP BY c.name''').fetchall())
+            GROUP BY c.name""").fetchall()
+        )
 
 
 def snapshot(source: Path, target: Path) -> dict:
@@ -51,7 +57,11 @@ def main(argv=None):
     parser.add_argument('--source', type=Path, default=Path('data/chromadb'))
     parser.add_argument('--snapshot', type=Path)
     args = parser.parse_args(argv)
-    result = snapshot(args.source, args.snapshot) if args.snapshot else {'counts': counts(args.source), 'files': inventory(args.source)}
+    result = (
+        snapshot(args.source, args.snapshot)
+        if args.snapshot
+        else {'counts': counts(args.source), 'files': inventory(args.source)}
+    )
     print(json.dumps(result, indent=2))
     return 0
 

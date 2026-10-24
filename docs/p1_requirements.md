@@ -9,24 +9,24 @@ Fuente: enunciado local `P1 - Multimodal Data Management.pdf` y `Project Context
 | C3. Landing temporal/persistente e incremental | Security Gate, claves por contenido, marcadores y copia verificada | Tests de fallos de copia/marcador, corrupción, reintentos y retención |
 | C4. Formatted por modalidad | JPEG RGB, FLAC PCM16, TXT UTF-8/LF/NFC | Conversiones verificadas con archivos reales y formatos límite |
 | C5. Trusted y calidad genérica | Validadores independientes, YAML, deduplicación y procedencia | Tests de políticas, bytes preservados y error operativo separado de rechazo |
-| C6. Perfiles e informes | HTML/PNG/CSV/JSON por modalidad y ejecución | Informes de Trusted; prueba CLI aislada genera sus propios informes |
+| C6. Perfiles e informes | HTML/PNG/CSV/JSON por modalidad y ejecución | Informes de Trusted y resúmenes de referencia en [evidence/](evidence/README.md); el CLI aislado genera sus propios informes |
 | C7. Embeddings por modalidad | CLIP imagen, CLAP audio y E5 texto | Colecciones de 100, 357 y 547 registros, respectivamente |
 | C8. Modularidad de zonas y tareas | Paquetes con contratos comunes y comandos independientes | Tests importan módulos sin conectar a S3; orquestador ejecuta pasos separados |
 | C9. Nombres significativos | Zonas, módulos y colecciones con propósito explícito | Revisión de estructura, contratos y documentación |
-| C10. Calidad del código y explicación | Validaciones, errores explícitos, comentarios y decisiones de diseño | Tests de regresión, lint básico de diff, documentación; revisión humana sigue siendo necesaria |
+| C10. Calidad del código y explicación | Validaciones, errores explícitos, comentarios y decisiones de diseño | Ruff y formato verificados, 344 pruebas offline, regresiones, memoria y registro de decisiones; revisión humana sigue siendo necesaria |
 | C11. Almacenamiento de objetos en Docker | MinIO local y servicio independiente para integración | Tests reales S3 en 19000 sin volumen ni credenciales de producción |
 | C12. Task 1, misma modalidad | Consultas por registro, imagen/audio externo y texto E5 | Autoexclusión por activo, cinco resultados por modalidad en aceptación real |
 | C13. Colecciones compartidas y resultados mixtos | Imagen-texto CLIP: 1.763; audio-texto CLAP: 3.254 | Consultas verificadas con ambas modalidades; políticas de diversidad documentadas |
-| C14. Modelo generativo externo preentrenado | BLIP para describir una imagen; CLIP recupera referencias | Inferencia real CPU registrada, modelo/revisión/hash de entrada; no se presenta como RAG |
+| C14. Modelo generativo externo preentrenado | Qwen genera usando contexto recuperado con E5/CLIP; BLIP adapta imágenes | RAG implementado; ver evidencias actuales, citas literales y límites de RAM en la guía de Task 3 |
 | C15. Orquestación completa | 16 pasos; adquisición opcional añade tres | Dos ejecuciones del CLI sobre fixture aislado; conciliación final y cero vectores nuevos en repetición |
 | C16. Repositorio reproducible y CI | Un requirements, Python 3.11, Docker, workflow Linux/Windows | Instalación/comandos documentados y validación local; falta evidencia de ejecución del workflow en GitHub |
 
 ## Entrega y criterios de cierre
 
-1. Mantener los tests y la conciliación en verde; conservar los informes de aceptación fuera de Git y anotar fecha/entorno.
+1. Mantener los tests y la conciliación en verde; conservar los informes completos fuera de Git y los resúmenes fechados en `docs/evidence/`.
 2. Comprobar el workflow en GitHub tras publicar los cambios. No marcar CI remota como validada antes de ver su resultado.
 3. Revisar licencias y atribuciones, así como la interpretación biológica de ejemplos de búsqueda y generación.
-4. Preparar la memoria conforme al límite del enunciado: máximo ocho páginas, más la página de instrucciones separada y sin numeración que no cuenta en ese límite. El borrador Markdown todavía requiere maquetación, comprobación del número de páginas y revisión por los autores.
+4. Revisar por los autores la [memoria final](ecosentinel_report.pdf): ocho páginas, incluida la portada, más la página inicial de instrucciones separada y sin numeración. Se han verificado las nueve páginas físicas y su renderizado. La [fuente Markdown](final_report.md) permite mantener el contenido.
 5. Demostrar instalación y ejecución con la guía adjunta. Los modelos deben prepararse de forma explícita antes de una demostración offline; el repositorio no incluye pesos ni datos privados.
 
 La interfaz web es una mejora de usabilidad del proyecto. Las puntuaciones de similitud no son precisión medida, probabilidades de especie ni una evaluación etiquetada de recuperación.

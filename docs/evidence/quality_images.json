@@ -1,0 +1,96 @@
+{
+  "evidence_source": "reports/trusted_quality/images/20261019T164636Z/summary.json",
+  "summary": {
+    "images_analyzed": 100,
+    "accepted": 100,
+    "rejected": 0,
+    "acceptance_rate_pct": 100.0,
+    "source_measured_mb": 264.22,
+    "trusted_measured_mb": 264.22,
+    "excluded_measured_mb": 0.0,
+    "total_measured_processing_seconds": 78.65,
+    "measured_images_per_second": 1.272,
+    "reasons": {},
+    "quality_flags": {
+      "monochrome_like": 14,
+      "possible_watermark": 32
+    },
+    "species_distribution_jsd_bits": 0.0,
+    "source_distribution_jsd_bits": 0.0,
+    "watermark_statuses": {
+      "no_indicator": 68,
+      "possible": 32
+    },
+    "watermark_methods": {
+      "advanced_ocr": 100
+    },
+    "species_before": {
+      "alcedo_atthis": 10,
+      "aquila_chrysaetos": 10,
+      "bubo_bubo": 10,
+      "canis_lupus": 10,
+      "cervus_elaphus": 10,
+      "erithacus_rubecula": 10,
+      "lynx_pardinus": 10,
+      "pelophylax_perezi": 10,
+      "sus_scrofa": 10,
+      "timon_lepidus": 10
+    },
+    "species_after": {
+      "alcedo_atthis": 10,
+      "aquila_chrysaetos": 10,
+      "bubo_bubo": 10,
+      "canis_lupus": 10,
+      "cervus_elaphus": 10,
+      "erithacus_rubecula": 10,
+      "lynx_pardinus": 10,
+      "pelophylax_perezi": 10,
+      "sus_scrofa": 10,
+      "timon_lepidus": 10
+    },
+    "sources_before": {
+      "wikimedia_commons": 100
+    },
+    "sources_after": {
+      "wikimedia_commons": 100
+    },
+    "species_retention_pct": {
+      "alcedo_atthis": 100.0,
+      "aquila_chrysaetos": 100.0,
+      "bubo_bubo": 100.0,
+      "canis_lupus": 100.0,
+      "cervus_elaphus": 100.0,
+      "erithacus_rubecula": 100.0,
+      "lynx_pardinus": 100.0,
+      "pelophylax_perezi": 100.0,
+      "sus_scrofa": 100.0,
+      "timon_lepidus": 100.0
+    },
+    "source_retention_pct": {
+      "wikimedia_commons": 100.0
+    },
+    "provenance_completeness_pct": 100.0,
+    "rejections_by_species": {},
+    "generated_at_utc": "2026-10-19T16:46:36.760753+00:00",
+    "policy_version": "1",
+    "policy": {
+      "max_file_mb": 20,
+      "max_megapixels": 40,
+      "min_width": 128,
+      "min_height": 128,
+      "aspect_ratio_warning_min": 0.2,
+      "aspect_ratio_warning_max": 5.0,
+      "dark_mean_threshold": 45,
+      "blur_laplacian_threshold": 60,
+      "monochrome_chroma_threshold": 9,
+      "phash_max_hamming": 6,
+      "duplicate_ssim_min": 0.975,
+      "duplicate_color_distance_max": 0.08,
+      "watermark_advanced_max_items": 1000,
+      "watermark_lightweight_signal_threshold": 0.12,
+      "watermark_reject": false
+    },
+    "report_scope": "All Trusted image quality manifests currently present in MinIO",
+    "caveat": "Times are per-asset measurements from the latest evaluation, not an end-to-end batch benchmark."
+  }
+}

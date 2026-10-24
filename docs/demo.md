@@ -1,6 +1,6 @@
 # Guion de demostración y reproducción
 
-Ejecutar desde la raíz del repositorio con `.venv` de Python 3.11 activado. En PowerShell: `.\.venv\Scripts\Activate.ps1`; en Git Bash: `source .venv/Scripts/activate`. Ver el README para la instalación CPU y la configuración local. Nunca compartir `.env`.
+Ejecutar desde la raíz del repositorio con `.venv` de Python 3.11 activado: `source .venv/Scripts/activate` en Git Bash. Ver el [manual de usuario](user_guide.md) para la instalación CPU, los casos de interfaz y la configuración local. Nunca compartir `.env`.
 
 ## 1. Comprobar el estado sin alterar los datos
 
@@ -44,16 +44,19 @@ Ejemplo: `Iberian lynx in Mediterranean forest`, CLIP, sin filtro de modalidad. 
 
 ## 3. Task 3
 
-En `Describir`, seleccionar una imagen de fauna. BLIP produce una descripción automática en inglés y CLIP busca referencias para contrastarla. Mostrar la descripción y las fuentes; explicar una posible imprecisión. No afirmar que es RAG ni que reconoce correctamente la especie.
+En **Preguntar al corpus · RAG**, introducir una pregunta sobre hábitat o alimentación y seleccionar opcionalmente una imagen de Trusted. El sistema recupera fuentes antes de que Qwen genere. Mostrar una afirmación, su enlace [S1] y la cita literal en la fuente. La observación BLIP se presenta separada y no identifica con certeza al animal. Una consulta de receta de pizza debe producir abstención. Una cita existente no demuestra por sí sola que la afirmación sea correcta.
+
+Regresión de imagen: seleccionar `pelophylax perezi · imagen …`, preguntar «qué animal es» y revisar la candidata del corpus, sin identificación confirmada. Después preguntar «Describe el hábitat y la alimentación de las especies candidatas recuperadas, según las fuentes. No confirmes la especie de la fotografía». Comprobar que las afirmaciones cubren ambos temas y sus citas corresponden a los extractos. Los errores técnicos se muestran separados de la abstención, con tokens y tiempo en el diagnóstico. Una foto externa se puede repetir como consulta; no se almacena ni se indexa.
 
 Alternativa CLI, tras preparar el modelo según la guía de Task 3:
 
 ```bash
-python -m multimodal_tasks.generate --help
-python -m orchestration.validate_reference --models --task3
+python -m multimodal_tasks.rag_model --download
+python -m multimodal_tasks.rag --question "¿Cuál es el hábitat del lince ibérico?"
+python -m orchestration.validate_rag --run
 ```
 
-La aceptación usa un archivo del corpus en lectura y produce un informe local con modelo, revisión y referencias. No añadir `--allow-model-download` salvo que se quiera autorizar explícitamente la descarga de pesos.
+La aceptación usa un archivo del corpus en lectura y produce un informe local con modelo, revisión y referencias. La descarga de Qwen requiere `rag_model --download`; las consultas y la web usan únicamente la caché. La aceptación del RAG se guarda en `reports/validation/rag_acceptance.json`. El antiguo `validate_reference --models --task3` sigue validando el captioning auxiliar.
 
 ## 4. Pipeline y pruebas con escritura aislada
 
@@ -70,6 +73,6 @@ Usar únicamente el compose de pruebas en este bloque. La prueba completa requie
 
 ## 5. Cierre de la exposición
 
-Mostrar los informes locales y el workflow de GitHub, diferenciando resultados observados de configuración. Explicar los límites: sin benchmark biológico etiquetado, generación susceptible de errores, modelos históricos con revisión originalmente nula y consumo de memoria dependiente de los archivos. La memoria final debe ajustarse al formato y límite oficial.
+Mostrar los [resúmenes de evidencia](evidence/README.md), los informes locales y el workflow de GitHub, diferenciando resultados observados de configuración. Explicar los límites: sin benchmark biológico etiquetado, generación susceptible de errores, modelos históricos con revisión originalmente nula y consumo de memoria dependiente de los archivos. La [memoria final](ecosentinel_report.pdf) ya está maquetada en ocho páginas más la página de instrucciones excluida del límite; revisarla con los autores antes de entregar.
 
 Al recrear el servicio de pruebas se pierde su almacenamiento S3 efímero. Para una sesión nueva, utilizar `python -m orchestration.smoke --run --workdir data/smoke-session-02` (una carpeta aún no utilizada) y repetir con esa misma ruta. No reutilizar el índice de una sesión cuyo S3 fue retirado; conservarlo como evidencia.

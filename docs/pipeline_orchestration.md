@@ -50,7 +50,7 @@ El lock de sistema operativo está en `reports/orchestration/.pipeline.lock`, au
 
 El alcance es local a esta copia del repositorio. Scripts manuales u otros equipos no adquieren automáticamente ese lock; no ejecutar escritores externos simultáneamente sobre los mismos almacenes.
 
-`ECOSENTINEL_STEP_TIMEOUT` limita cada paso en segundos (3600 por defecto). Un timeout termina el árbol de procesos y registra un fallo. Ctrl+C interrumpe el activo y omite los siguientes. Los procesos se aíslan con grupos/sesiones según Windows o POSIX.
+`ECOSENTINEL_STEP_TIMEOUT` limita cada paso en segundos (3600 por defecto); debe ser positivo y finito. Un timeout termina el árbol de procesos y registra un fallo. Ctrl+C interrumpe el activo y omite los siguientes. Los procesos se aíslan con grupos/sesiones según Windows o POSIX. No es un supervisor externo durante una suspensión del equipo; los tiempos observados no deben interpretarse como una garantía de rendimiento.
 
 Los modelos se cargan secuencialmente y el proceso termina entre colecciones. El indexador libera familias de encoders y limita los lotes textuales. El audio todavía se decodifica por archivo; no se promete RAM constante para cualquier duración.
 
@@ -62,7 +62,7 @@ Una terminación forzada puede dejar un informe `running`: se conserva como evid
 
 ## 6. Configuración y aislamiento
 
-El cliente compartido se crea de forma perezosa, con timeouts y retries S3 acotados. Se admite `S3_ENDPOINT_URL`, con respaldo `MINIO_ENDPOINT`. Las credenciales se cargan localmente y no se imprimen.
+El cliente compartido se crea de forma perezosa, con timeout de conexión de 5 s, lectura de 60 s y hasta tres reintentos estándar. Landing, Formatted y Trusted comparten esta configuración; las fábricas públicas de las zonas se conservan como adaptadores. Se admite `S3_ENDPOINT_URL`, con respaldo `MINIO_ENDPOINT`. Las credenciales se cargan localmente y no se imprimen.
 
 `ECOSENTINEL_LANDING_BUCKET`, `ECOSENTINEL_FORMATTED_BUCKET`, `ECOSENTINEL_TRUSTED_BUCKET`, `ECOSENTINEL_RAW_ROOT`, `ECOSENTINEL_CHROMA_PATH` y `ECOSENTINEL_REPORT_ROOT` permiten separar datos e informes. Por defecto se conserva la configuración histórica.
 

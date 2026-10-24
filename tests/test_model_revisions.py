@@ -1,4 +1,5 @@
 """Offline model revision safety: no downloads and no GPU/model inference."""
+
 import copy
 import json
 from unittest.mock import Mock
@@ -62,5 +63,7 @@ def test_preparation_uses_cpu_and_requires_explicit_download(download, monkeypat
     assert factory.call_args.kwargs['device'] == 'cpu'
     assert adapter.sentence_transformer.call_count == 3
     adapter.clap_model.assert_called_once()
-    assert prepare_models.os.environ['ECOSENTINEL_ALLOW_MODEL_DOWNLOAD'] == ('1' if download else '0')
+    assert prepare_models.os.environ['ECOSENTINEL_ALLOW_MODEL_DOWNLOAD'] == (
+        '1' if download else '0'
+    )
     assert prepare_models.os.environ['HF_HUB_OFFLINE'] == ('0' if download else '1')

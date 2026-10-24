@@ -1,0 +1,17 @@
+# One style and static-analysis command for application code and tests.
+target-version = "py311"
+line-length = 100
+extend-exclude = ["data", "reports", "minio_data"]
+
+[lint]
+select = ["E4", "E7", "E9", "F"]
+
+[lint.per-file-ignores]
+# Legacy direct script entry points establish the repository import path first.
+"landing_zone/persistent_landing/process_to_persistent.py" = ["E402"]
+"landing_zone/temporal_landing/ingest_local_data.py" = ["E402"]
+"trusted_zone/validate_audio.py" = ["E402"]
+"trusted_zone/validate_text.py" = ["E402"]
+
+[format]
+quote-style = "single"

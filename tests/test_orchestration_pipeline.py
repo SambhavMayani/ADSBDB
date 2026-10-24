@@ -1,4 +1,5 @@
 """Offline tests: subprocess, MinIO, external APIs, Chroma, and models are all mocked."""
+
 import json
 import sys
 from pathlib import Path
@@ -51,16 +52,22 @@ def test_landing_ingest_precedes_persistent_promotion():
 
 def test_formatted_precedes_trusted():
     names = [s.stage for s in pipeline.build_plan()]
-    assert max(i for i, stage in enumerate(names) if stage == 'formatted') < min(i for i, stage in enumerate(names) if stage == 'trusted')
+    assert max(i for i, stage in enumerate(names) if stage == 'formatted') < min(
+        i for i, stage in enumerate(names) if stage == 'trusted'
+    )
 
 
 def test_trusted_precedes_exploitation():
     names = [s.stage for s in pipeline.build_plan()]
-    assert max(i for i, stage in enumerate(names) if stage == 'trusted') < min(i for i, stage in enumerate(names) if stage == 'exploitation')
+    assert max(i for i, stage in enumerate(names) if stage == 'trusted') < min(
+        i for i, stage in enumerate(names) if stage == 'exploitation'
+    )
 
 
 def test_five_vector_spaces_in_expected_order():
-    assert [s.arguments[1] for s in pipeline.build_plan() if s.stage == 'exploitation'] == list(pipeline.SPACES)
+    assert [s.arguments[1] for s in pipeline.build_plan() if s.stage == 'exploitation'] == list(
+        pipeline.SPACES
+    )
 
 
 def test_one_vector_space_per_process():
@@ -72,7 +79,11 @@ def test_default_cpu():
 
 
 def test_cuda_is_opt_in():
-    assert all(s.arguments[-1] == 'cuda' for s in pipeline.build_plan(device='cuda') if s.stage == 'exploitation')
+    assert all(
+        s.arguments[-1] == 'cuda'
+        for s in pipeline.build_plan(device='cuda')
+        if s.stage == 'exploitation'
+    )
 
 
 def test_from_stage_exploitation_includes_final_verification():
@@ -117,8 +128,16 @@ def test_script_argv_uses_given_interpreter():
 
 
 def test_module_argv_uses_m():
-    step = s('exploitation', 'index', 'exploitation_zone.indexer', ['--space', 'images'], module=True)
-    assert step.argv('python.exe') == ['python.exe', '-m', 'exploitation_zone.indexer', '--space', 'images']
+    step = s(
+        'exploitation', 'index', 'exploitation_zone.indexer', ['--space', 'images'], module=True
+    )
+    assert step.argv('python.exe') == [
+        'python.exe',
+        '-m',
+        'exploitation_zone.indexer',
+        '--space',
+        'images',
+    ]
 
 
 def test_validate_targets_reports_missing_file(tmp_path):
@@ -176,7 +195,9 @@ def test_run_success_creates_json_report(tmp_path):
         commands.append((list(args), root, log))
         return 0
 
-    code, report_file = pipeline.run_pipeline(steps, root=tmp_path, runner=runner, executable='python-test')
+    code, report_file = pipeline.run_pipeline(
+        steps, root=tmp_path, runner=runner, executable='python-test'
+    )
     data = json.loads(report_file.read_text(encoding='utf-8'))
     assert code == 0 and data['status'] == 'completed'
     assert len(data['steps']) == 2
@@ -257,7 +278,9 @@ def test_reports_use_new_names_for_separate_runs(tmp_path):
 def test_custom_relative_report_dir_resolves_from_root(tmp_path):
     steps = [s()]
     fixture_tree(tmp_path, steps)
-    _, output = pipeline.run_pipeline(steps, root=tmp_path, report_dir=Path('my-reports'), runner=lambda *a: 0)
+    _, output = pipeline.run_pipeline(
+        steps, root=tmp_path, report_dir=Path('my-reports'), runner=lambda *a: 0
+    )
     assert output.parent == tmp_path / 'my-reports'
 
 
@@ -283,9 +306,11 @@ def test_cli_reverse_stages_exits_with_usage_error():
 
 def test_cli_run_calls_pipeline_with_mock(monkeypatch):
     calls = []
+
     def fake_run(plan, *, report_dir):
         calls.append((plan, report_dir))
         return (0, Path('some_report.json'))
+
     monkeypatch.setattr(pipeline, 'run_pipeline', fake_run)
     assert pipeline.main(['--run', '--from-stage', 'exploitation']) == 0
     assert len(calls) == 1 and len(calls[0][0]) == 6
@@ -322,7 +347,7 @@ def test_process_runner_streams_and_captures(tmp_path, capsys):
 
 def test_process_runner_propagates_failure(tmp_path):
     script = tmp_path / 'failure.py'
-    script.write_text("raise SystemExit(3)\n", encoding='utf-8')
+    script.write_text('raise SystemExit(3)\n', encoding='utf-8')
     assert pipeline._run_process([sys.executable, str(script)], tmp_path, tmp_path / 'log.txt') == 3
 
 
@@ -332,8 +357,11 @@ def test_end_to_end_mock_pipeline_runs_all_stages_without_external_services(tmp_
     fixture_tree(tmp_path, steps)
     for step in steps:
         location = step.target.replace('.', '/') + '.py' if step.module else step.target
-        mock_content = ("import sys\nprint('MOCK index-' + sys.argv[2], flush=True)\n" if step.target == 'exploitation_zone.indexer'
-                        else f"print('MOCK {step.name}', flush=True)\n")
+        mock_content = (
+            "import sys\nprint('MOCK index-' + sys.argv[2], flush=True)\n"
+            if step.target == 'exploitation_zone.indexer'
+            else f"print('MOCK {step.name}', flush=True)\n"
+        )
         (tmp_path / location).write_text(mock_content, encoding='utf-8')
     code, report_file = pipeline.run_pipeline(steps, root=tmp_path)
     data = json.loads(report_file.read_text(encoding='utf-8'))
@@ -343,15 +371,21 @@ def test_end_to_end_mock_pipeline_runs_all_stages_without_external_services(tmp_
     for x in data['steps']:
         log = report_file.parent / x['log']
         assert log.is_file()
-        assert f"MOCK {x['name']}" in log.read_text(encoding='utf-8')
+        assert f'MOCK {x["name"]}' in log.read_text(encoding='utf-8')
 
 
 def test_report_survives_subprocess_failure_with_real_runner(tmp_path):
-    steps = [s(name='okay', target='okay.py'), s('landing', 'bad', 'bad.py'), s('trusted', 'never', 'never.py')]
+    steps = [
+        s(name='okay', target='okay.py'),
+        s('landing', 'bad', 'bad.py'),
+        s('trusted', 'never', 'never.py'),
+    ]
     fixture_tree(tmp_path, steps)
     (tmp_path / 'okay.py').write_text("print('ok')\n", encoding='utf-8')
     (tmp_path / 'bad.py').write_text("print('failure')\nraise SystemExit(4)\n", encoding='utf-8')
-    (tmp_path / 'never.py').write_text("raise RuntimeError('should not be called')\n", encoding='utf-8')
+    (tmp_path / 'never.py').write_text(
+        "raise RuntimeError('should not be called')\n", encoding='utf-8'
+    )
     exit_code, report_file = pipeline.run_pipeline(steps, root=tmp_path)
     data = json.loads(report_file.read_text(encoding='utf-8'))
     assert exit_code == 4

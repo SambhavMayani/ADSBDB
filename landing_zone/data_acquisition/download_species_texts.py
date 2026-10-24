@@ -5,6 +5,7 @@ import re
 import time
 from pathlib import Path
 import sys
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from orchestration.files import atomic_json_write
 
@@ -18,31 +19,26 @@ from urllib3.util.retry import Retry
 # Source configuration
 # ---------------------------------------------------------
 
-WIKIPEDIA_API_URL = "https://{language}.wikipedia.org/w/api.php"
+WIKIPEDIA_API_URL = 'https://{language}.wikipedia.org/w/api.php'
 
-WIKIPEDIA_LICENSE = "CC BY-SA 4.0"
-WIKIPEDIA_LICENSE_URL = (
-    "https://creativecommons.org/licenses/by-sa/4.0/"
-)
+WIKIPEDIA_LICENSE = 'CC BY-SA 4.0'
+WIKIPEDIA_LICENSE_URL = 'https://creativecommons.org/licenses/by-sa/4.0/'
 
-GBIF_API_URL = "https://api.gbif.org/v1"
+GBIF_API_URL = 'https://api.gbif.org/v1'
 
 GBIF_PAGE_SIZE = 100
 GBIF_MAX_PAGES = 10
 
-USER_AGENT = (
-    "EcoSentinel-ADSDB/1.0 "
-    "(academic multimodal data management project)"
-)
+USER_AGENT = 'EcoSentinel-ADSDB/1.0 (academic multimodal data management project)'
 
 SUPPORTED_SOURCES = (
-    "wikipedia",
-    "gbif",
+    'wikipedia',
+    'gbif',
 )
 
 DEFAULT_LANGUAGES = (
-    "es",
-    "en",
+    'es',
+    'en',
 )
 
 # GBIF aggregates descriptions from many checklists. Very short
@@ -52,21 +48,21 @@ DEFAULT_GBIF_MIN_CHARS = 200
 
 # Description types that are taxonomic lists rather than prose.
 EXCLUDED_GBIF_TYPES = {
-    "child_taxa",
-    "vernacular_names",
-    "synonyms",
+    'child_taxa',
+    'vernacular_names',
+    'synonyms',
 }
 
 # GBIF uses ISO 639-2 codes while Wikipedia uses ISO 639-1.
 LANGUAGE_CODES = {
-    "eng": "en",
-    "spa": "es",
-    "por": "pt",
-    "cat": "ca",
-    "fra": "fr",
-    "fre": "fr",
-    "deu": "de",
-    "ger": "de",
+    'eng': 'en',
+    'spa': 'es',
+    'por': 'pt',
+    'cat': 'ca',
+    'fra': 'fr',
+    'fre': 'fr',
+    'deu': 'de',
+    'ger': 'de',
 }
 
 REQUEST_DELAY_SECONDS = 0.4
@@ -78,23 +74,15 @@ REQUEST_DELAY_SECONDS = 0.4
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-SPECIES_CONFIG = (
-    PROJECT_ROOT
-    / "config"
-    / "species.yaml"
-)
+SPECIES_CONFIG = PROJECT_ROOT / 'config' / 'species.yaml'
 
-OUTPUT_ROOT = (
-    PROJECT_ROOT
-    / "data"
-    / "raw_dataset"
-    / "text"
-)
+OUTPUT_ROOT = PROJECT_ROOT / 'data' / 'raw_dataset' / 'text'
 
 
 # ---------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------
+
 
 def sanitize_component(value):
     """
@@ -104,10 +92,10 @@ def sanitize_component(value):
     value = str(value).strip().lower()
 
     return re.sub(
-        r"[^a-z0-9_-]+",
-        "_",
+        r'[^a-z0-9_-]+',
+        '_',
         value,
-    ).strip("_")
+    ).strip('_')
 
 
 def normalize_language(code):
@@ -129,7 +117,7 @@ def normalize_language(code):
 def contains_html(text):
     return bool(
         re.search(
-            r"<[a-zA-Z/][^>]*>",
+            r'<[a-zA-Z/][^>]*>',
             text,
         )
     )
@@ -142,10 +130,10 @@ def sha256_file(path):
 
     sha256 = hashlib.sha256()
 
-    with open(path, "rb") as file:
+    with open(path, 'rb') as file:
         for chunk in iter(
             lambda: file.read(8192),
-            b"",
+            b'',
         ):
             sha256.update(chunk)
 
@@ -165,9 +153,9 @@ def write_text_file(
 
     with open(
         output_path,
-        "w",
-        encoding="utf-8",
-        newline="\n",
+        'w',
+        encoding='utf-8',
+        newline='\n',
     ) as file:
         file.write(text)
 
@@ -187,8 +175,8 @@ def load_metadata(
     try:
         with open(
             metadata_path,
-            "r",
-            encoding="utf-8",
+            'r',
+            encoding='utf-8',
         ) as file:
             records = json.load(file)
 
@@ -196,20 +184,14 @@ def load_metadata(
         json.JSONDecodeError,
         OSError,
     ):
-        raise ValueError("Existing acquisition metadata is unreadable; preserving it")
+        raise ValueError('Existing acquisition metadata is unreadable; preserving it')
 
     if not isinstance(records, list) or any(not isinstance(record, dict) for record in records):
-        raise ValueError("Acquisition metadata must be an array of records")
+        raise ValueError('Acquisition metadata must be an array of records')
     return [
         record
         for record in records
-        if (
-            record.get("local_filename")
-            and (
-                output_dir
-                / record["local_filename"]
-            ).exists()
-        )
+        if (record.get('local_filename') and (output_dir / record['local_filename']).exists())
     ]
 
 
@@ -220,14 +202,15 @@ def save_metadata(metadata_path, records):
 
 def record_identity(record):
     return (
-        record.get("source_name"),
-        record.get("source_record_id"),
+        record.get('source_name'),
+        record.get('source_record_id'),
     )
 
 
 # ---------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------
+
 
 def load_species():
     """
@@ -236,17 +219,18 @@ def load_species():
 
     with open(
         SPECIES_CONFIG,
-        "r",
-        encoding="utf-8",
+        'r',
+        encoding='utf-8',
     ) as file:
         config = yaml.safe_load(file)
 
-    return config["species"]
+    return config['species']
 
 
 # ---------------------------------------------------------
 # Wikipedia API
 # ---------------------------------------------------------
+
 
 def get_wikipedia_article(
     session,
@@ -262,35 +246,37 @@ def get_wikipedia_article(
     """
 
     params = {
-        "action": "query",
-        "prop": "extracts|info|revisions|pageprops",
-        "explaintext": "1",
-        "exsectionformat": "wiki",
-        "inprop": "url",
-        "rvprop": "ids|timestamp",
-        "ppprop": "disambiguation",
-        "redirects": "1",
-        "titles": title,
-        "format": "json",
-        "formatversion": "2",
+        'action': 'query',
+        'prop': 'extracts|info|revisions|pageprops',
+        'explaintext': '1',
+        'exsectionformat': 'wiki',
+        'inprop': 'url',
+        'rvprop': 'ids|timestamp',
+        'ppprop': 'disambiguation',
+        'redirects': '1',
+        'titles': title,
+        'format': 'json',
+        'formatversion': '2',
     }
 
     response = session.get(
-        WIKIPEDIA_API_URL.format(
-            language=language
-        ),
+        WIKIPEDIA_API_URL.format(language=language),
         params=params,
         timeout=30,
     )
 
     response.raise_for_status()
 
-    pages = response.json().get(
-        "query",
-        {},
-    ).get(
-        "pages",
-        [],
+    pages = (
+        response.json()
+        .get(
+            'query',
+            {},
+        )
+        .get(
+            'pages',
+            [],
+        )
     )
 
     if not pages:
@@ -299,13 +285,14 @@ def get_wikipedia_article(
     page = pages[0]
 
     if (
-        page.get("missing")
-        or page.get("invalid")
-        or "disambiguation" in page.get(
-            "pageprops",
+        page.get('missing')
+        or page.get('invalid')
+        or 'disambiguation'
+        in page.get(
+            'pageprops',
             {},
         )
-        or not page.get("extract", "").strip()
+        or not page.get('extract', '').strip()
     ):
         return None
 
@@ -321,13 +308,9 @@ def candidate_wikipedia_titles(
     reliable lookup; the common name is a fallback.
     """
 
-    titles = [
-        species["scientific_name"]
-    ]
+    titles = [species['scientific_name']]
 
-    common_name = species.get(
-        f"common_name_{language}"
-    )
+    common_name = species.get(f'common_name_{language}')
 
     if common_name:
         titles.append(common_name)
@@ -343,25 +326,19 @@ def acquire_wikipedia(
     records,
     metadata_path,
 ):
-    species_id = species["id"]
-    scientific_name = species["scientific_name"]
+    species_id = species['id']
+    scientific_name = species['scientific_name']
 
-    existing_ids = {
-        record_identity(record)
-        for record in records
-    }
+    existing_ids = {record_identity(record) for record in records}
 
     for language in languages:
-
         page = None
 
         for title in candidate_wikipedia_titles(
             species,
             language,
         ):
-            time.sleep(
-                REQUEST_DELAY_SECONDS
-            )
+            time.sleep(REQUEST_DELAY_SECONDS)
 
             page = get_wikipedia_article(
                 session,
@@ -373,74 +350,53 @@ def acquire_wikipedia(
                 break
 
         if not page:
-            print(
-                f"Wikipedia ({language}): "
-                "no article found"
-            )
+            print(f'Wikipedia ({language}): no article found')
             continue
 
-        source_record_id = (
-            f"{language}:{page['pageid']}"
-        )
+        source_record_id = f'{language}:{page["pageid"]}'
 
         if (
-            "wikipedia",
+            'wikipedia',
             source_record_id,
         ) in existing_ids:
-            print(
-                f"Wikipedia ({language}): "
-                "already registered"
-            )
+            print(f'Wikipedia ({language}): already registered')
             continue
 
-        revision = (
-            page.get("revisions")
-            or [{}]
-        )[0]
+        revision = (page.get('revisions') or [{}])[0]
 
-        filename = (
-            f"wikipedia_{language}_"
-            f"{species_id}.txt"
-        )
+        filename = f'wikipedia_{language}_{species_id}.txt'
 
         output_path = output_dir / filename
 
-        print(
-            f"Wikipedia ({language}): "
-            f"{page['title']} -> {filename}"
-        )
+        print(f'Wikipedia ({language}): {page["title"]} -> {filename}')
 
         write_text_file(
             output_path,
-            page["extract"],
+            page['extract'],
         )
 
         record = {
-            "species_id": species_id,
-            "scientific_name": scientific_name,
-            "source_name": "wikipedia",
-            "source_record_id": source_record_id,
-            "title": page["title"],
-            "language": language,
-            "source_url": page.get("fullurl"),
-            "revision_id": revision.get("revid"),
-            "revision_timestamp": revision.get(
-                "timestamp"
-            ),
-            "local_filename": filename,
-            "mime_type": "text/plain",
-            "char_count": len(page["extract"]),
-            "file_size_bytes": output_path.stat().st_size,
-            "license": WIKIPEDIA_LICENSE,
-            "license_url": WIKIPEDIA_LICENSE_URL,
-            "creator": "Wikipedia contributors",
-            "sha256": sha256_file(output_path),
+            'species_id': species_id,
+            'scientific_name': scientific_name,
+            'source_name': 'wikipedia',
+            'source_record_id': source_record_id,
+            'title': page['title'],
+            'language': language,
+            'source_url': page.get('fullurl'),
+            'revision_id': revision.get('revid'),
+            'revision_timestamp': revision.get('timestamp'),
+            'local_filename': filename,
+            'mime_type': 'text/plain',
+            'char_count': len(page['extract']),
+            'file_size_bytes': output_path.stat().st_size,
+            'license': WIKIPEDIA_LICENSE,
+            'license_url': WIKIPEDIA_LICENSE_URL,
+            'creator': 'Wikipedia contributors',
+            'sha256': sha256_file(output_path),
         }
 
         records.append(record)
-        existing_ids.add(
-            record_identity(record)
-        )
+        existing_ids.add(record_identity(record))
 
         save_metadata(
             metadata_path,
@@ -452,6 +408,7 @@ def acquire_wikipedia(
 # GBIF API
 # ---------------------------------------------------------
 
+
 def get_gbif_taxon_key(
     session,
     scientific_name,
@@ -461,10 +418,10 @@ def get_gbif_taxon_key(
     """
 
     response = session.get(
-        f"{GBIF_API_URL}/species/match",
+        f'{GBIF_API_URL}/species/match',
         params={
-            "name": scientific_name,
-            "strict": "true",
+            'name': scientific_name,
+            'strict': 'true',
         },
         timeout=30,
     )
@@ -473,13 +430,13 @@ def get_gbif_taxon_key(
 
     match = response.json()
 
-    if match.get("matchType") not in {
-        "EXACT",
-        "FUZZY",
+    if match.get('matchType') not in {
+        'EXACT',
+        'FUZZY',
     }:
         return None
 
-    return match.get("usageKey")
+    return match.get('usageKey')
 
 
 def get_gbif_descriptions(
@@ -494,17 +451,13 @@ def get_gbif_descriptions(
     descriptions = []
 
     for page in range(GBIF_MAX_PAGES):
-
-        time.sleep(
-            REQUEST_DELAY_SECONDS
-        )
+        time.sleep(REQUEST_DELAY_SECONDS)
 
         response = session.get(
-            f"{GBIF_API_URL}/species/"
-            f"{taxon_key}/descriptions",
+            f'{GBIF_API_URL}/species/{taxon_key}/descriptions',
             params={
-                "limit": GBIF_PAGE_SIZE,
-                "offset": page * GBIF_PAGE_SIZE,
+                'limit': GBIF_PAGE_SIZE,
+                'offset': page * GBIF_PAGE_SIZE,
             },
             timeout=30,
         )
@@ -513,12 +466,10 @@ def get_gbif_descriptions(
 
         data = response.json()
 
-        descriptions.extend(
-            data.get("results", [])
-        )
+        descriptions.extend(data.get('results', []))
 
         if data.get(
-            "endOfRecords",
+            'endOfRecords',
             True,
         ):
             break
@@ -542,30 +493,22 @@ def get_gbif_dataset(
     dataset = {}
 
     try:
-        time.sleep(
-            REQUEST_DELAY_SECONDS
-        )
+        time.sleep(REQUEST_DELAY_SECONDS)
 
         taxon = session.get(
-            f"{GBIF_API_URL}/species/"
-            f"{source_taxon_key}",
+            f'{GBIF_API_URL}/species/{source_taxon_key}',
             timeout=30,
         )
 
         taxon.raise_for_status()
 
-        dataset_key = taxon.json().get(
-            "datasetKey"
-        )
+        dataset_key = taxon.json().get('datasetKey')
 
         if dataset_key:
-            time.sleep(
-                REQUEST_DELAY_SECONDS
-            )
+            time.sleep(REQUEST_DELAY_SECONDS)
 
             response = session.get(
-                f"{GBIF_API_URL}/dataset/"
-                f"{dataset_key}",
+                f'{GBIF_API_URL}/dataset/{dataset_key}',
                 timeout=30,
             )
 
@@ -574,16 +517,13 @@ def get_gbif_dataset(
             data = response.json()
 
             dataset = {
-                "dataset_key": dataset_key,
-                "dataset_title": data.get("title"),
-                "license_url": data.get("license"),
+                'dataset_key': dataset_key,
+                'dataset_title': data.get('title'),
+                'license_url': data.get('license'),
             }
 
     except requests.RequestException as error:
-        print(
-            "Warning: GBIF dataset lookup failed "
-            f"for taxon {source_taxon_key}: {error}"
-        )
+        print(f'Warning: GBIF dataset lookup failed for taxon {source_taxon_key}: {error}')
 
     cache[source_taxon_key] = dataset
 
@@ -600,19 +540,16 @@ def license_name_from_url(url):
 
     url = url.lower()
 
-    if "publicdomain/zero" in url:
-        return "CC0 1.0"
+    if 'publicdomain/zero' in url:
+        return 'CC0 1.0'
 
     match = re.search(
-        r"licenses/([a-z-]+)/([0-9.]+)",
+        r'licenses/([a-z-]+)/([0-9.]+)',
         url,
     )
 
     if match:
-        return (
-            f"CC {match.group(1).upper()} "
-            f"{match.group(2)}"
-        )
+        return f'CC {match.group(1).upper()} {match.group(2)}'
 
     return None
 
@@ -627,25 +564,15 @@ def acquire_gbif(
     min_chars,
     dataset_cache,
 ):
-    species_id = species["id"]
-    scientific_name = species["scientific_name"]
+    species_id = species['id']
+    scientific_name = species['scientific_name']
 
-    registered = [
-        record
-        for record in records
-        if record.get("source_name") == "gbif"
-    ]
+    registered = [record for record in records if record.get('source_name') == 'gbif']
 
-    existing_ids = {
-        record_identity(record)
-        for record in records
-    }
+    existing_ids = {record_identity(record) for record in records}
 
     if len(registered) >= limit:
-        print(
-            "GBIF: target already reached "
-            f"({len(registered)}/{limit})"
-        )
+        print(f'GBIF: target already reached ({len(registered)}/{limit})')
         return
 
     taxon_key = get_gbif_taxon_key(
@@ -654,7 +581,7 @@ def acquire_gbif(
     )
 
     if not taxon_key:
-        print("GBIF: taxon not found")
+        print('GBIF: taxon not found')
         return
 
     descriptions = get_gbif_descriptions(
@@ -666,73 +593,49 @@ def acquire_gbif(
         description
         for description in descriptions
         if (
-            len(
-                (
-                    description.get("description")
-                    or ""
-                ).strip()
-            ) >= min_chars
-            and sanitize_component(
-                description.get("type") or ""
-            ) not in EXCLUDED_GBIF_TYPES
+            len((description.get('description') or '').strip()) >= min_chars
+            and sanitize_component(description.get('type') or '') not in EXCLUDED_GBIF_TYPES
         )
     ]
 
     print(
-        "GBIF descriptions found: "
-        f"{len(descriptions)} "
-        f"({len(candidates)} usable, >= "
-        f"{min_chars} chars)"
+        'GBIF descriptions found: '
+        f'{len(descriptions)} '
+        f'({len(candidates)} usable, >= '
+        f'{min_chars} chars)'
     )
 
     for description in candidates:
-
         if len(registered) >= limit:
             break
 
-        source_record_id = str(
-            description["key"]
-        )
+        source_record_id = str(description['key'])
 
         if (
-            "gbif",
+            'gbif',
             source_record_id,
         ) in existing_ids:
             continue
 
-        text = description["description"]
+        text = description['description']
 
-        description_type = sanitize_component(
-            description.get("type")
-            or "description"
-        )
+        description_type = sanitize_component(description.get('type') or 'description')
 
         # Raw content is preserved. Some checklists publish
         # HTML, which is kept as .html for the Formatted Zone.
-        extension = (
-            ".html"
-            if contains_html(text)
-            else ".txt"
-        )
+        extension = '.html' if contains_html(text) else '.txt'
 
-        filename = (
-            f"gbif_{source_record_id}_"
-            f"{description_type}{extension}"
-        )
+        filename = f'gbif_{source_record_id}_{description_type}{extension}'
 
         output_path = output_dir / filename
 
         dataset = get_gbif_dataset(
             session,
-            description.get("sourceTaxonKey"),
+            description.get('sourceTaxonKey'),
             dataset_cache,
         )
 
-        print(
-            "Downloading GBIF "
-            f"{len(registered) + 1}/{limit}: "
-            f"{filename}"
-        )
+        print(f'Downloading GBIF {len(registered) + 1}/{limit}: {filename}')
 
         try:
             write_text_file(
@@ -741,67 +644,37 @@ def acquire_gbif(
             )
 
         except OSError as error:
-            print(
-                "Local file error for "
-                f"{filename}: {error}"
-            )
+            print(f'Local file error for {filename}: {error}')
             continue
 
-        license_url = dataset.get(
-            "license_url"
-        )
+        license_url = dataset.get('license_url')
 
         record = {
-            "species_id": species_id,
-            "scientific_name": scientific_name,
-            "source_name": "gbif",
-            "source_record_id": source_record_id,
-            "title": (
-                f"{scientific_name} - "
-                f"{description.get('type') or 'description'}"
-            ),
-            "description_type": description.get(
-                "type"
-            ),
-            "language": normalize_language(
-                description.get("language")
-            ),
-            "source_url": (
-                "https://www.gbif.org/species/"
-                f"{taxon_key}"
-            ),
-            "gbif_taxon_key": taxon_key,
-            "gbif_source_taxon_key": description.get(
-                "sourceTaxonKey"
-            ),
-            "dataset_key": dataset.get(
-                "dataset_key"
-            ),
-            "dataset_title": (
-                dataset.get("dataset_title")
-                or description.get("source")
-            ),
-            "local_filename": filename,
-            "mime_type": (
-                "text/html"
-                if extension == ".html"
-                else "text/plain"
-            ),
-            "char_count": len(text),
-            "file_size_bytes": output_path.stat().st_size,
-            "license": license_name_from_url(
-                license_url
-            ),
-            "license_url": license_url,
-            "creator": description.get("creator"),
-            "sha256": sha256_file(output_path),
+            'species_id': species_id,
+            'scientific_name': scientific_name,
+            'source_name': 'gbif',
+            'source_record_id': source_record_id,
+            'title': (f'{scientific_name} - {description.get("type") or "description"}'),
+            'description_type': description.get('type'),
+            'language': normalize_language(description.get('language')),
+            'source_url': (f'https://www.gbif.org/species/{taxon_key}'),
+            'gbif_taxon_key': taxon_key,
+            'gbif_source_taxon_key': description.get('sourceTaxonKey'),
+            'dataset_key': dataset.get('dataset_key'),
+            'dataset_title': (dataset.get('dataset_title') or description.get('source')),
+            'local_filename': filename,
+            'mime_type': ('text/html' if extension == '.html' else 'text/plain'),
+            'char_count': len(text),
+            'file_size_bytes': output_path.stat().st_size,
+            'license': license_name_from_url(license_url),
+            'license_url': license_url,
+            'creator': description.get('creator'),
+            'sha256': sha256_file(output_path),
         }
 
         records.append(record)
         registered.append(record)
-        existing_ids.add(
-            record_identity(record)
-        )
+        existing_ids.add(record_identity(record))
 
         save_metadata(
             metadata_path,
@@ -813,6 +686,7 @@ def acquire_gbif(
 # Species processing
 # ---------------------------------------------------------
 
+
 def process_species(
     session,
     species,
@@ -822,8 +696,8 @@ def process_species(
     gbif_min_chars,
     dataset_cache,
 ):
-    species_id = species["id"]
-    scientific_name = species["scientific_name"]
+    species_id = species['id']
+    scientific_name = species['scientific_name']
 
     output_dir = OUTPUT_ROOT / species_id
 
@@ -832,29 +706,23 @@ def process_species(
         exist_ok=True,
     )
 
-    metadata_path = (
-        output_dir
-        / "_metadata.json"
-    )
+    metadata_path = output_dir / '_metadata.json'
 
     print()
-    print("=" * 60)
-    print(f"Species: {scientific_name}")
-    print(f"Sources: {', '.join(sources)}")
-    print("=" * 60)
+    print('=' * 60)
+    print(f'Species: {scientific_name}')
+    print(f'Sources: {", ".join(sources)}')
+    print('=' * 60)
 
     records = load_metadata(
         metadata_path,
         output_dir,
     )
 
-    print(
-        "Texts already registered: "
-        f"{len(records)}"
-    )
+    print(f'Texts already registered: {len(records)}')
 
     errors = 0
-    if "wikipedia" in sources:
+    if 'wikipedia' in sources:
         try:
             acquire_wikipedia(
                 session,
@@ -867,13 +735,13 @@ def process_species(
 
         except requests.RequestException as error:
             errors += 1
-            print(f"Wikipedia error: {error}")
+            print(f'Wikipedia error: {error}')
 
         except OSError as error:
             errors += 1
-            print(f"Local file error: {error}")
+            print(f'Local file error: {error}')
 
-    if "gbif" in sources:
+    if 'gbif' in sources:
         try:
             acquire_gbif(
                 session,
@@ -888,7 +756,7 @@ def process_species(
 
         except requests.RequestException as error:
             errors += 1
-            print(f"GBIF error: {error}")
+            print(f'GBIF error: {error}')
 
     # Final write as an additional safeguard.
     save_metadata(
@@ -897,11 +765,8 @@ def process_species(
     )
 
     print()
-    print(
-        "Total available: "
-        f"{len(records)} texts"
-    )
-    print(f"Metadata: {metadata_path}")
+    print(f'Total available: {len(records)} texts')
+    print(f'Metadata: {metadata_path}')
 
     return errors
 
@@ -909,6 +774,7 @@ def process_species(
 # ---------------------------------------------------------
 # HTTP session
 # ---------------------------------------------------------
+
 
 def create_session():
     """
@@ -928,26 +794,18 @@ def create_session():
             503,
             504,
         ],
-        allowed_methods=[
-            "GET"
-        ],
+        allowed_methods=['GET'],
         respect_retry_after_header=True,
     )
 
-    adapter = HTTPAdapter(
-        max_retries=retry_strategy
-    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
 
     session.mount(
-        "https://",
+        'https://',
         adapter,
     )
 
-    session.headers.update(
-        {
-            "User-Agent": USER_AGENT
-        }
-    )
+    session.headers.update({'User-Agent': USER_AGENT})
 
     return session
 
@@ -956,58 +814,44 @@ def create_session():
 # Main
 # ---------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
-        description=(
-            "Download descriptive species texts "
-            "from Wikipedia and GBIF."
-        )
+        description=('Download descriptive species texts from Wikipedia and GBIF.')
     )
 
     parser.add_argument(
-        "--species",
-        help=(
-            "Species id from "
-            "config/species.yaml"
-        ),
+        '--species',
+        help=('Species id from config/species.yaml'),
     )
 
     parser.add_argument(
-        "--sources",
-        nargs="+",
+        '--sources',
+        nargs='+',
         choices=SUPPORTED_SOURCES,
         default=list(SUPPORTED_SOURCES),
-        help="Text sources to query",
+        help='Text sources to query',
     )
 
     parser.add_argument(
-        "--languages",
-        nargs="+",
+        '--languages',
+        nargs='+',
         default=list(DEFAULT_LANGUAGES),
-        help=(
-            "Wikipedia language editions "
-            "(e.g. es en)"
-        ),
+        help=('Wikipedia language editions (e.g. es en)'),
     )
 
     parser.add_argument(
-        "--gbif-limit",
+        '--gbif-limit',
         type=int,
         default=10,
-        help=(
-            "Maximum number of GBIF descriptions "
-            "per species"
-        ),
+        help=('Maximum number of GBIF descriptions per species'),
     )
 
     parser.add_argument(
-        "--gbif-min-chars",
+        '--gbif-min-chars',
         type=int,
         default=DEFAULT_GBIF_MIN_CHARS,
-        help=(
-            "Minimum length of a GBIF description "
-            "to be downloaded"
-        ),
+        help=('Minimum length of a GBIF description to be downloaded'),
     )
 
     args = parser.parse_args()
@@ -1015,23 +859,12 @@ def main():
     species_list = load_species()
 
     if args.species:
-
-        species_list = [
-            species
-            for species in species_list
-            if species["id"] == args.species
-        ]
+        species_list = [species for species in species_list if species['id'] == args.species]
 
         if not species_list:
-            raise ValueError(
-                f"Species '{args.species}' "
-                "not found in species.yaml"
-            )
+            raise ValueError(f"Species '{args.species}' not found in species.yaml")
 
-    languages = [
-        sanitize_component(language)
-        for language in args.languages
-    ]
+    languages = [sanitize_component(language) for language in args.languages]
 
     session = create_session()
 
@@ -1051,5 +884,6 @@ def main():
 
     return 1 if errors else 0
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     raise SystemExit(main())

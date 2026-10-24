@@ -414,3 +414,12 @@ input[type=file] {
     flex-direction:column
   }
 }
+
+#generation p { margin: 14px 0; }
+#generation a { color: var(--green); font-weight: 700; }
+#generation blockquote { border-left: 3px solid #759b5c; margin: 12px 0 22px; padding: 8px 16px; background: #f5f8ef; font-size: 13px; }
+#rag-fields { margin: 24px 0; }
+#rag-fields select { margin-top: 8px; }
+#rag-question { margin-bottom: 20px; }
+.card:target { outline: 3px solid #759b5c; outline-offset: 4px; }
+.rag-candidates { margin: 20px 0; padding: 14px 18px; border: 1px solid #b4c5a4; border-radius: 8px; }

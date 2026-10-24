@@ -1,0 +1,3 @@
+# Preserve document bytes across Windows and Linux checkouts.
+*.pdf binary
+*.pptx binary

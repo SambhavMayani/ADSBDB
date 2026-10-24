@@ -1,0 +1,21 @@
+# Separate from the five immutable embedding contracts: no reindexing required.
+version: '1'
+model: Qwen/Qwen2.5-3B-Instruct-GGUF
+revision: 7dabda4d13d513e3e842b20f0d435c732f172cbe
+quantization: Q4_K_M
+model_file: qwen2.5-3b-instruct-q4_k_m.gguf
+model_sha256: 626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d
+max_input_tokens: 3072
+max_new_tokens: 320
+max_generation_seconds: 120
+cpu_threads: 4
+min_available_memory_gib: 2.5
+retrieval_candidates: 10
+max_sources: 6
+max_source_chars: 1400
+max_context_chars: 4800
+min_text_chars: 120
+max_evidence_units: 8
+max_evidence_chars: 1600
+max_claim_chars: 240
+max_lexical_records: 128

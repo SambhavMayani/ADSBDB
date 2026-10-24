@@ -6,6 +6,7 @@ import re
 import time
 from pathlib import Path
 import sys
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from orchestration.files import atomic_json_write
 
@@ -19,17 +20,14 @@ from urllib3.util.retry import Retry
 # Wikimedia configuration
 # ---------------------------------------------------------
 
-API_URL = "https://commons.wikimedia.org/w/api.php"
+API_URL = 'https://commons.wikimedia.org/w/api.php'
 
-USER_AGENT = (
-    "EcoSentinel-ADSDB/1.0 "
-    "(academic multimodal data management project)"
-)
+USER_AGENT = 'EcoSentinel-ADSDB/1.0 (academic multimodal data management project)'
 
 ALLOWED_MIME_TYPES = {
-    "image/jpeg",
-    "image/png",
-    "image/webp",
+    'image/jpeg',
+    'image/png',
+    'image/webp',
 }
 
 MIN_LONG_SIDE = 1200
@@ -46,23 +44,15 @@ REQUEST_DELAY_SECONDS = 0.4
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
-SPECIES_CONFIG = (
-    PROJECT_ROOT
-    / "config"
-    / "species.yaml"
-)
+SPECIES_CONFIG = PROJECT_ROOT / 'config' / 'species.yaml'
 
-OUTPUT_ROOT = (
-    PROJECT_ROOT
-    / "data"
-    / "raw_dataset"
-    / "images"
-)
+OUTPUT_ROOT = PROJECT_ROOT / 'data' / 'raw_dataset' / 'images'
 
 
 # ---------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------
+
 
 def clean_html(value):
     """
@@ -73,8 +63,8 @@ def clean_html(value):
         return None
 
     value = re.sub(
-        r"<[^>]+>",
-        "",
+        r'<[^>]+>',
+        '',
         value,
     )
 
@@ -92,30 +82,34 @@ def safe_filename(filename, max_length=140):
 
     filename = re.sub(
         r'[<>:"/\\|?*]',
-        "_",
+        '_',
         filename,
     )
 
     # Windows does not allow filenames ending in spaces or dots.
-    filename = filename.rstrip(" .") or "asset"
-    reserved = {"CON", "PRN", "AUX", "NUL", *("COM" + str(i) for i in range(1, 10)), *("LPT" + str(i) for i in range(1, 10))}
-    if filename.split(".")[0].upper() in reserved:
-        filename = "_" + filename
+    filename = filename.rstrip(' .') or 'asset'
+    reserved = {
+        'CON',
+        'PRN',
+        'AUX',
+        'NUL',
+        *('COM' + str(i) for i in range(1, 10)),
+        *('LPT' + str(i) for i in range(1, 10)),
+    }
+    if filename.split('.')[0].upper() in reserved:
+        filename = '_' + filename
 
     path = Path(filename)
 
     extension = path.suffix
     stem = path.stem
 
-    max_stem_length = (
-        max_length
-        - len(extension)
-    )
+    max_stem_length = max_length - len(extension)
 
     if len(stem) > max_stem_length:
         stem = stem[:max_stem_length]
 
-    return f"{stem}{extension}"
+    return f'{stem}{extension}'
 
 
 def sha256_file(path):
@@ -125,10 +119,10 @@ def sha256_file(path):
 
     sha256 = hashlib.sha256()
 
-    with open(path, "rb") as file:
+    with open(path, 'rb') as file:
         for chunk in iter(
             lambda: file.read(8192),
-            b"",
+            b'',
         ):
             sha256.update(chunk)
 
@@ -144,6 +138,7 @@ def save_metadata(metadata_path, downloaded):
 # Configuration
 # ---------------------------------------------------------
 
+
 def load_species():
     """
     Load species configuration from config/species.yaml.
@@ -151,17 +146,18 @@ def load_species():
 
     with open(
         SPECIES_CONFIG,
-        "r",
-        encoding="utf-8",
+        'r',
+        encoding='utf-8',
     ) as file:
         config = yaml.safe_load(file)
 
-    return config["species"]
+    return config['species']
 
 
 # ---------------------------------------------------------
 # Wikimedia API
 # ---------------------------------------------------------
+
 
 def get_category_members(
     session,
@@ -172,18 +168,16 @@ def get_category_members(
     category corresponding to a scientific species name.
     """
 
-    category = (
-        f"Category:{scientific_name}"
-    )
+    category = f'Category:{scientific_name}'
 
     params = {
-        "action": "query",
-        "list": "categorymembers",
-        "cmtitle": category,
-        "cmtype": "file",
-        "cmlimit": "100",
-        "format": "json",
-        "formatversion": "2",
+        'action': 'query',
+        'list': 'categorymembers',
+        'cmtitle': category,
+        'cmtype': 'file',
+        'cmlimit': '100',
+        'format': 'json',
+        'formatversion': '2',
     }
 
     response = session.get(
@@ -196,14 +190,7 @@ def get_category_members(
 
     data = response.json()
 
-    return [
-        item["title"]
-        for item in data[
-            "query"
-        ][
-            "categorymembers"
-        ]
-    ]
+    return [item['title'] for item in data['query']['categorymembers']]
 
 
 def get_image_info(
@@ -219,20 +206,13 @@ def get_image_info(
     """
 
     params = {
-        "action": "query",
-        "prop": "imageinfo",
-        "titles": title,
-        "iiprop": (
-            "url|mime|size|extmetadata"
-        ),
-        "iiextmetadatafilter": (
-            "Artist|"
-            "LicenseShortName|"
-            "LicenseUrl|"
-            "Credit"
-        ),
-        "format": "json",
-        "formatversion": "2",
+        'action': 'query',
+        'prop': 'imageinfo',
+        'titles': title,
+        'iiprop': ('url|mime|size|extmetadata'),
+        'iiextmetadatafilter': ('Artist|LicenseShortName|LicenseUrl|Credit'),
+        'format': 'json',
+        'formatversion': '2',
     }
 
     response = session.get(
@@ -243,35 +223,20 @@ def get_image_info(
 
     response.raise_for_status()
 
-    pages = response.json()[
-        "query"
-    ][
-        "pages"
-    ]
+    pages = response.json()['query']['pages']
 
-    if (
-        not pages
-        or "imageinfo" not in pages[0]
-    ):
+    if not pages or 'imageinfo' not in pages[0]:
         return None
 
-    info = pages[0][
-        "imageinfo"
-    ][0]
+    info = pages[0]['imageinfo'][0]
 
     metadata = info.get(
-        "extmetadata",
+        'extmetadata',
         {},
     )
 
-    info[
-        "clean_metadata"
-    ] = {
-        key: clean_html(
-            value.get("value")
-        )
-        for key, value
-        in metadata.items()
+    info['clean_metadata'] = {
+        key: clean_html(value.get('value')) for key, value in metadata.items()
     }
 
     return info
@@ -280,6 +245,7 @@ def get_image_info(
 # ---------------------------------------------------------
 # Download
 # ---------------------------------------------------------
+
 
 def download_file(
     session,
@@ -295,17 +261,13 @@ def download_file(
         stream=True,
         timeout=60,
     ) as response:
-
         response.raise_for_status()
 
         with open(
             output_path,
-            "wb",
+            'wb',
         ) as file:
-
-            for chunk in response.iter_content(
-                chunk_size=8192
-            ):
+            for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     file.write(chunk)
 
@@ -313,6 +275,7 @@ def download_file(
 # ---------------------------------------------------------
 # Metadata record
 # ---------------------------------------------------------
+
 
 def build_metadata_record(
     species_id,
@@ -329,47 +292,27 @@ def build_metadata_record(
     """
 
     ext_metadata = info.get(
-        "clean_metadata",
+        'clean_metadata',
         {},
     )
 
     return {
-        "species_id": species_id,
-        "scientific_name": scientific_name,
-        "source_name": "wikimedia_commons",
-        "commons_title": title,
-        "source_url": info.get(
-            "descriptionurl"
-        ),
-        "original_filename": original_name,
-        "local_filename": filename,
-        "mime_type": info.get(
-            "mime"
-        ),
-        "width": info.get(
-            "width"
-        ),
-        "height": info.get(
-            "height"
-        ),
-        "file_size_bytes": info.get(
-            "size"
-        ),
-        "license": ext_metadata.get(
-            "LicenseShortName"
-        ),
-        "license_url": ext_metadata.get(
-            "LicenseUrl"
-        ),
-        "creator": ext_metadata.get(
-            "Artist"
-        ),
-        "credit": ext_metadata.get(
-            "Credit"
-        ),
-        "sha256": sha256_file(
-            output_path
-        ),
+        'species_id': species_id,
+        'scientific_name': scientific_name,
+        'source_name': 'wikimedia_commons',
+        'commons_title': title,
+        'source_url': info.get('descriptionurl'),
+        'original_filename': original_name,
+        'local_filename': filename,
+        'mime_type': info.get('mime'),
+        'width': info.get('width'),
+        'height': info.get('height'),
+        'file_size_bytes': info.get('size'),
+        'license': ext_metadata.get('LicenseShortName'),
+        'license_url': ext_metadata.get('LicenseUrl'),
+        'creator': ext_metadata.get('Artist'),
+        'credit': ext_metadata.get('Credit'),
+        'sha256': sha256_file(output_path),
     }
 
 
@@ -377,40 +320,29 @@ def build_metadata_record(
 # Species processing
 # ---------------------------------------------------------
 
+
 def process_species(
     session,
     species,
     limit,
 ):
-    species_id = species["id"]
-    scientific_name = (
-        species["scientific_name"]
-    )
+    species_id = species['id']
+    scientific_name = species['scientific_name']
 
-    output_dir = (
-        OUTPUT_ROOT
-        / species_id
-    )
+    output_dir = OUTPUT_ROOT / species_id
 
     output_dir.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    metadata_path = (
-        output_dir
-        / "_metadata.json"
-    )
+    metadata_path = output_dir / '_metadata.json'
 
     print()
-    print("=" * 60)
-    print(
-        f"Species: {scientific_name}"
-    )
-    print(
-        f"Target: {limit} images"
-    )
-    print("=" * 60)
+    print('=' * 60)
+    print(f'Species: {scientific_name}')
+    print(f'Target: {limit} images')
+    print('=' * 60)
 
     errors = 0
     titles = get_category_members(
@@ -418,96 +350,64 @@ def process_species(
         scientific_name,
     )
 
-    print(
-        "Wikimedia candidates found: "
-        f"{len(titles)}"
-    )
+    print(f'Wikimedia candidates found: {len(titles)}')
 
     # -----------------------------------------------------
     # Load previous metadata
     # -----------------------------------------------------
 
     if metadata_path.exists():
-
         try:
             with open(
                 metadata_path,
-                "r",
-                encoding="utf-8",
+                'r',
+                encoding='utf-8',
             ) as file:
-                downloaded = json.load(
-                    file
-                )
+                downloaded = json.load(file)
 
         except (
             json.JSONDecodeError,
             OSError,
         ):
-            raise ValueError("Existing acquisition metadata is unreadable; preserving it")
+            raise ValueError('Existing acquisition metadata is unreadable; preserving it')
 
     else:
         downloaded = []
 
-    if not isinstance(downloaded, list) or any(not isinstance(record, dict) for record in downloaded):
-        raise ValueError("Image acquisition metadata must be an array of records")
+    if not isinstance(downloaded, list) or any(
+        not isinstance(record, dict) for record in downloaded
+    ):
+        raise ValueError('Image acquisition metadata must be an array of records')
     # Keep only metadata records whose local asset
     # still exists.
     downloaded = [
         record
         for record in downloaded
-        if (
-            record.get(
-                "local_filename"
-            )
-            and (
-                output_dir
-                / record[
-                    "local_filename"
-                ]
-            ).exists()
-        )
+        if (record.get('local_filename') and (output_dir / record['local_filename']).exists())
     ]
 
     existing_titles = {
-        record.get(
-            "commons_title"
-        )
-        for record in downloaded
-        if record.get(
-            "commons_title"
-        )
+        record.get('commons_title') for record in downloaded if record.get('commons_title')
     }
 
     existing_filenames = {
-        record.get(
-            "local_filename"
-        )
-        for record in downloaded
-        if record.get(
-            "local_filename"
-        )
+        record.get('local_filename') for record in downloaded if record.get('local_filename')
     }
 
-    print(
-        "Images already registered: "
-        f"{len(downloaded)}"
-    )
+    print(f'Images already registered: {len(downloaded)}')
 
     # -----------------------------------------------------
     # Candidate processing
     # -----------------------------------------------------
 
     for title in titles:
-
         if len(downloaded) >= limit:
             break
 
         if title in existing_titles:
             continue
 
-        time.sleep(
-            REQUEST_DELAY_SECONDS
-        )
+        time.sleep(REQUEST_DELAY_SECONDS)
 
         try:
             info = get_image_info(
@@ -518,23 +418,18 @@ def process_species(
             if not info:
                 continue
 
-            mime = info.get(
-                "mime"
-            )
+            mime = info.get('mime')
 
-            if (
-                mime
-                not in ALLOWED_MIME_TYPES
-            ):
+            if mime not in ALLOWED_MIME_TYPES:
                 continue
 
             width = info.get(
-                "width",
+                'width',
                 0,
             )
 
             height = info.get(
-                "height",
+                'height',
                 0,
             )
 
@@ -548,78 +443,52 @@ def process_species(
                 continue
 
             file_size = info.get(
-                "size",
+                'size',
                 0,
             )
 
-            max_bytes = (
-                MAX_FILE_SIZE_MB
-                * 1024
-                * 1024
-            )
+            max_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
 
             if file_size > max_bytes:
                 continue
 
-            url = info["url"]
+            url = info['url']
 
-            original_name = (
-                title.replace(
-                    "File:",
-                    "",
-                    1,
-                )
+            original_name = title.replace(
+                'File:',
+                '',
+                1,
             )
 
-            filename = safe_filename(
-                original_name
-            )
+            filename = safe_filename(original_name)
 
-            output_path = (
-                output_dir
-                / filename
-            )
+            output_path = output_dir / filename
 
             # -------------------------------------------------
             # Existing local image without metadata
             # -------------------------------------------------
 
             if output_path.exists():
-
-                if (
-                    filename
-                    in existing_filenames
-                ):
+                if filename in existing_filenames:
                     continue
 
-                print(
-                    "Recovering metadata for "
-                    f"existing file: {filename}"
+                print(f'Recovering metadata for existing file: {filename}')
+
+                record = build_metadata_record(
+                    species_id,
+                    scientific_name,
+                    title,
+                    info,
+                    original_name,
+                    filename,
+                    output_path,
                 )
 
-                record = (
-                    build_metadata_record(
-                        species_id,
-                        scientific_name,
-                        title,
-                        info,
-                        original_name,
-                        filename,
-                        output_path,
-                    )
-                )
+                downloaded.append(record)
 
-                downloaded.append(
-                    record
-                )
+                existing_titles.add(title)
 
-                existing_titles.add(
-                    title
-                )
-
-                existing_filenames.add(
-                    filename
-                )
+                existing_filenames.add(filename)
 
                 save_metadata(
                     metadata_path,
@@ -632,12 +501,7 @@ def process_species(
             # New download
             # -------------------------------------------------
 
-            print(
-                f"Downloading "
-                f"{len(downloaded) + 1}/"
-                f"{limit}: "
-                f"{filename}"
-            )
+            print(f'Downloading {len(downloaded) + 1}/{limit}: {filename}')
 
             download_file(
                 session,
@@ -645,29 +509,21 @@ def process_species(
                 output_path,
             )
 
-            record = (
-                build_metadata_record(
-                    species_id,
-                    scientific_name,
-                    title,
-                    info,
-                    original_name,
-                    filename,
-                    output_path,
-                )
+            record = build_metadata_record(
+                species_id,
+                scientific_name,
+                title,
+                info,
+                original_name,
+                filename,
+                output_path,
             )
 
-            downloaded.append(
-                record
-            )
+            downloaded.append(record)
 
-            existing_titles.add(
-                title
-            )
+            existing_titles.add(title)
 
-            existing_filenames.add(
-                filename
-            )
+            existing_filenames.add(filename)
 
             # Write metadata immediately after each
             # successful asset.
@@ -679,18 +535,12 @@ def process_species(
         except requests.RequestException as error:
             errors += 1
 
-            print(
-                f"Error processing "
-                f"{title}: {error}"
-            )
+            print(f'Error processing {title}: {error}')
 
         except OSError as error:
             errors += 1
 
-            print(
-                f"Local file error "
-                f"for {title}: {error}"
-            )
+            print(f'Local file error for {title}: {error}')
 
     # Final write as an additional safeguard.
     save_metadata(
@@ -699,20 +549,17 @@ def process_species(
     )
 
     print()
-    print(
-        "Total available: "
-        f"{len(downloaded)} images"
-    )
+    print(f'Total available: {len(downloaded)} images')
 
-    print(
-        f"Metadata: {metadata_path}"
-    )
+    print(f'Metadata: {metadata_path}')
 
     return errors
+
 
 # ---------------------------------------------------------
 # HTTP session
 # ---------------------------------------------------------
+
 
 def create_session():
     """
@@ -732,26 +579,18 @@ def create_session():
             503,
             504,
         ],
-        allowed_methods=[
-            "GET"
-        ],
+        allowed_methods=['GET'],
         respect_retry_after_header=True,
     )
 
-    adapter = HTTPAdapter(
-        max_retries=retry_strategy
-    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
 
     session.mount(
-        "https://",
+        'https://',
         adapter,
     )
 
-    session.headers.update(
-        {
-            "User-Agent": USER_AGENT
-        }
-    )
+    session.headers.update({'User-Agent': USER_AGENT})
 
     return session
 
@@ -760,30 +599,22 @@ def create_session():
 # Main
 # ---------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
-        description=(
-            "Download curated wildlife images "
-            "from Wikimedia Commons."
-        )
+        description=('Download curated wildlife images from Wikimedia Commons.')
     )
 
     parser.add_argument(
-        "--species",
-        help=(
-            "Species id from "
-            "config/species.yaml"
-        ),
+        '--species',
+        help=('Species id from config/species.yaml'),
     )
 
     parser.add_argument(
-        "--limit",
+        '--limit',
         type=int,
         default=10,
-        help=(
-            "Number of images "
-            "per species"
-        ),
+        help=('Number of images per species'),
     )
 
     args = parser.parse_args()
@@ -791,24 +622,10 @@ def main():
     species_list = load_species()
 
     if args.species:
-
-        species_list = [
-            species
-            for species
-            in species_list
-            if (
-                species["id"]
-                == args.species
-            )
-        ]
+        species_list = [species for species in species_list if (species['id'] == args.species)]
 
         if not species_list:
-            raise ValueError(
-                f"Species "
-                f"'{args.species}' "
-                "not found in "
-                "species.yaml"
-            )
+            raise ValueError(f"Species '{args.species}' not found in species.yaml")
 
     session = create_session()
 
@@ -822,5 +639,6 @@ def main():
 
     return 1 if errors else 0
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     raise SystemExit(main())

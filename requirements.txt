@@ -40,3 +40,10 @@ scipy==1.17.1
 # Automated testing
 pytest==9.1.1
 pytest-cov==7.1.0
+ruff==0.14.2
+
+# Task 3: official prebuilt CPU runtime, no local C++ compilation or GPU wheels.
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+--only-binary=llama-cpp-python
+llama-cpp-python==0.3.36
+diskcache==5.6.3

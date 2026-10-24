@@ -1,4 +1,5 @@
 """Read-only reconciliation of accepted Trusted assets and persisted vector parts."""
+
 from __future__ import annotations
 import argparse
 from collections import Counter, defaultdict
@@ -18,8 +19,11 @@ def reconcile(repository, index: Path, cfg: dict, *, check_bytes=True):
     assets = {}
     for modality in SPACES:
         for key in repository.list(modality):
-            info = repository.source_info(key)
-            assets[key] = (modality, hashlib.sha256(repository.get(key)).hexdigest() if check_bytes else None)
+            repository.source_info(key)
+            assets[key] = (
+                modality,
+                hashlib.sha256(repository.get(key)).hexdigest() if check_bytes else None,
+            )
     if not assets:
         raise ValueError('No accepted Trusted assets; refusing a successful empty pipeline')
     dbfile = Path(index).resolve() / 'chroma.sqlite3'
@@ -29,29 +33,38 @@ def reconcile(repository, index: Path, cfg: dict, *, check_bytes=True):
     with sqlite3.connect(dbfile.as_uri() + '?mode=ro', uri=True) as db:
         for space, name in cfg['collections'].items():
             grouped = defaultdict(dict)
-            query = '''SELECT e.embedding_id,m.key,m.string_value,m.int_value FROM collections c
+            query = """SELECT e.embedding_id,m.key,m.string_value,m.int_value FROM collections c
                 JOIN segments s ON s.collection=c.id JOIN embeddings e ON e.segment_id=s.id
-                JOIN embedding_metadata m ON m.id=e.id WHERE c.name=?'''
+                JOIN embedding_metadata m ON m.id=e.id WHERE c.name=?"""
             for rid, key, string, integer in db.execute(query, (name,)):
                 grouped[rid][key] = string if string is not None else integer
             by_asset = defaultdict(list)
             for rid, md in grouped.items():
                 by_asset[md.get('source_key')].append(md)
-            expected_keys = {key for key, (modality, _) in assets.items() if space in SPACES[modality]}
+            expected_keys = {
+                key for key, (modality, _) in assets.items() if space in SPACES[modality]
+            }
             for key in expected_keys - by_asset.keys():
                 problems.append(f'{space}: missing asset {key}')
             for key in by_asset.keys() - expected_keys:
                 problems.append(f'{space}: stale or unaccepted asset {key}')
             for key in expected_keys & by_asset.keys():
                 parts = by_asset[key]
-                if any(md.get('expected_parts') != len(parts) for md in parts) or {md.get('part') for md in parts} != set(range(len(parts))):
+                if any(md.get('expected_parts') != len(parts) for md in parts) or {
+                    md.get('part') for md in parts
+                } != set(range(len(parts))):
                     problems.append(f'{space}: incomplete parts {key}')
                 if check_bytes and any(md.get('source_sha256') != assets[key][1] for md in parts):
                     problems.append(f'{space}: source checksum mismatch {key}')
             totals[space] = len(grouped)
-    return {'status': 'failed' if problems else 'completed', 'trusted_assets': len(assets),
-            'trusted_by_modality': dict(Counter(m for m, _ in assets.values())),
-            'collections': dict(totals), 'total_vectors': sum(totals.values()), 'problems': problems}
+    return {
+        'status': 'failed' if problems else 'completed',
+        'trusted_assets': len(assets),
+        'trusted_by_modality': dict(Counter(m for m, _ in assets.values())),
+        'collections': dict(totals),
+        'total_vectors': sum(totals.values()),
+        'problems': problems,
+    }
 
 
 def main(argv=None):
