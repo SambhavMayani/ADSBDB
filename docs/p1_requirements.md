@@ -13,7 +13,7 @@ Fuente: enunciado local `P1 - Multimodal Data Management.pdf` y `Project Context
 | C7. Embeddings por modalidad | CLIP imagen, CLAP audio y E5 texto | Colecciones de 100, 357 y 547 registros, respectivamente |
 | C8. Modularidad de zonas y tareas | Paquetes con contratos comunes y comandos independientes | Tests importan módulos sin conectar a S3; orquestador ejecuta pasos separados |
 | C9. Nombres significativos | Zonas, módulos y colecciones con propósito explícito | Revisión de estructura, contratos y documentación |
-| C10. Calidad del código y explicación | Validaciones, errores explícitos, comentarios y decisiones de diseño | Ruff y formato verificados, 344 pruebas offline, regresiones, memoria y registro de decisiones; revisión humana sigue siendo necesaria |
+| C10. Calidad del código y explicación | Validaciones, errores explícitos, comentarios y decisiones de diseño | Ruff y formato verificados, 364 pruebas offline, regresiones, memoria y registro de decisiones; revisión humana sigue siendo necesaria |
 | C11. Almacenamiento de objetos en Docker | MinIO local y servicio independiente para integración | Tests reales S3 en 19000 sin volumen ni credenciales de producción |
 | C12. Task 1, misma modalidad | Consultas por registro, imagen/audio externo y texto E5 | Autoexclusión por activo, cinco resultados por modalidad en aceptación real |
 | C13. Colecciones compartidas y resultados mixtos | Imagen-texto CLIP: 1.763; audio-texto CLAP: 3.254 | Consultas verificadas con ambas modalidades; políticas de diversidad documentadas |
@@ -27,6 +27,6 @@ Fuente: enunciado local `P1 - Multimodal Data Management.pdf` y `Project Context
 2. Comprobar el workflow en GitHub tras publicar los cambios. No marcar CI remota como validada antes de ver su resultado.
 3. Revisar licencias y atribuciones, así como la interpretación biológica de ejemplos de búsqueda y generación.
 4. Revisar por los autores la [memoria final](ecosentinel_report.pdf): ocho páginas, incluida la portada, más la página inicial de instrucciones separada y sin numeración. Se han verificado las nueve páginas físicas y su renderizado. La [fuente Markdown](final_report.md) permite mantener el contenido.
-5. Demostrar instalación y ejecución con la guía adjunta. Los modelos deben prepararse de forma explícita antes de una demostración offline; el repositorio no incluye pesos ni datos privados.
+5. Demostrar instalación y ejecución con la guía adjunta. Los modelos deben prepararse de forma explícita antes de una demostración offline; el repositorio no incluye pesos ni datos privados. La primera página distingue archivos fuente frente a instalación ya preparada, indica `python -m orchestration.pipeline --run`, explica la copia de consulta, el arranque de la web y las rutas de informes. La copia es una protección adicional del proyecto y no un requisito de persistencia de Chroma.
 
 La interfaz web es una mejora de usabilidad del proyecto. Las puntuaciones de similitud no son precisión medida, probabilidades de especie ni una evaluación etiquetada de recuperación.

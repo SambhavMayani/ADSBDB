@@ -31,7 +31,18 @@ python -m orchestration.pipeline --run --from-stage exploitation
 
 Desde Exploitation se incluye la conciliación final. `--through-stage exploitation` la omite de manera explícita; `--from-stage verification` ejecuta solo la conciliación. Todos los hijos usan el mismo `sys.executable`, la raíz como `cwd` y argumentos en lista, sin shell. CPU es el dispositivo predeterminado.
 
-Descargar nuevos activos (`--with-acquisition`) y preparar pesos (`ECOSENTINEL_ALLOW_MODEL_DOWNLOAD=1`) son decisiones distintas. La operación habitual usa la caché local, con Hugging Face en modo offline.
+**Después del pipeline:** `--run` termina al conciliar Trusted y el índice original; no arranca la web ni crea automáticamente la copia de consulta. Con el pipeline completado y los escritores detenidos, la primera instalación continúa con:
+
+```bash
+python -m orchestration.audit --source data/chromadb --snapshot data/search_index
+python -m webapp.server
+```
+
+La instantánea copia y verifica la base vectorial existente; no recalcula embeddings ni duplica los medios originales. Search abre esa copia para proteger el índice original. El destino debe ser nuevo; una copia existente se reutiliza o se sustituye explícitamente por otra ruta nueva, sin sobrescribirla. Véase el [manual](user_guide.md) para el primer arranque completo y la actualización de la copia.
+
+Antes del primer pipeline completo, preparar los modelos de embeddings con `python -m exploitation_zone.prepare_models --download` y comprobar la carga local con `python -m exploitation_zone.prepare_models`. Se descargan parámetros ya entrenados, no datos de fauna; no se entrenan modelos ni se calculan embeddings en ese paso. Los subprocesos del pipeline usan la caché con Hugging Face offline por defecto: `--with-acquisition` no habilita descargas de pesos. Qwen y BLIP se preparan aparte para Task 3 y no son necesarios para construir las zonas.
+
+Sin `data/raw_dataset/`, configurar primero almacenamiento y proveedores (incluida `XENO_CANTO_API_KEY`) y ejecutar `python -m orchestration.pipeline --run --with-acquisition`. Con los archivos y sus `_metadata.json` locales, ejecutar `python -m orchestration.pipeline --run`; no se vuelven a adquirir datos de Internet. Si ya existe un estado S3/Chroma coherente, basta conciliar y preparar/reutilizar la copia de consulta. El [manual](user_guide.md) detalla requisitos, orden, resultados y recuperación de cada ruta.
 
 ## 3. Errores, retención y recuperación
 

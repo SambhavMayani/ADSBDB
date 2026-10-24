@@ -47,6 +47,38 @@ python -m pytest -m integration -q
 docker compose -p ecosentinel-tests -f docker-compose.test.yml down
 ```
 
+## Choose the first-run route
+
+Before a new build, configure local `.env`/Docker storage and [prepare the embedding models](docs/user_guide.md#2-prepare-models-explicitly). Model preparation downloads pretrained weights once; `pip` installs the code that uses them. The pipeline loads cached weights and does not download them automatically. Qwen/BLIP preparation is separate and needed only for Task 3.
+
+**No local raw data:** follow the [common storage setup and acquisition prerequisites](docs/user_guide.md#3-fresh-clone-without-the-reference-data), including `XENO_CANTO_API_KEY`. With Internet access and the models ready:
+
+```bash
+python -m orchestration.pipeline --plan --with-acquisition
+python -m orchestration.pipeline --run --with-acquisition
+```
+
+This selects 19 steps: the existing image, audio and text acquisition scripts, then all zones and reconciliation. Provider availability and quotas can cause failures or different counts; inspect the run report. The flag acquires wildlife data, not model weights. After successful processing, create the query copy and start the web as below.
+
+**Raw files already local:** use the following 16-step route without acquisition.
+
+Retain the supplied files and `_metadata.json` sidecars under `data/raw_dataset/<modality>/<species_id>/`. A code-only clone does not contain them. Complete the same storage/model prerequisites, then run:
+
+```bash
+docker compose up -d
+python -m orchestration.pipeline --plan
+python -m orchestration.pipeline --run
+# Continue after "Pipeline status: completed", with index writers stopped.
+python -m orchestration.audit --source data/chromadb --snapshot data/search_index
+python -m webapp.server
+```
+
+The pipeline builds/verifies the zones and original index; it does not start the web server or create its query snapshot. The snapshot command copies and verifies the existing vector database from `data/chromadb/` to `data/search_index/`. It does not recompute embeddings or copy source media. The web reads the snapshot and loads source media from object storage. Open **http://127.0.0.1:8765**.
+
+Chroma already stores the original index on disk between runs. The separate copy is our conservative protection for the audited index because opening Chroma can write internal files; it is not required for persistence. It costs extra database disk space. Dataset means the image/audio/text files; embeddings are their numeric representations. See the [user guide](docs/user_guide.md#4-start-the-reference-interface) for copy reuse, refresh, completion criteria and report locations.
+
+This block assumes `data/search_index/` does not yet exist. Existing snapshots are never overwritten or refreshed automatically; use the next section for an already prepared installation. After corpus changes, create a snapshot at a new path and start the server with `--index NEW_PATH`.
+
 ## Run the existing corpus
 
 Configure `.env` locally from `.env.example`, then start storage. Do not replace an existing `.env` or remove Docker volumes. The pinned S3-compatible container is SILO; Python uses the MinIO/S3 API.

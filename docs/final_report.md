@@ -1,8 +1,8 @@
 # Instructions
 
-**Repository:** https://github.com/SambhavMayani/ADSBDB<br/>**Authors:** Mario Rodrigo, Sambhav and Wassim<br/>**Environment:** 64-bit Python 3.11; Windows Git Bash or Linux; Docker for storage. Grant the supervisor repository access if it is private.
+**Repository:** https://github.com/SambhavMayani/ADSBDB<br/>**Authors:** Mario Rodrigo, Sambhav and Wassim. **Requirements:** 64-bit Python 3.11, Git Bash on Windows, Docker Desktop. Grant the supervisor access to a private repository.
 
-## Install and run the independent checks
+## 1. Install and verify the code
 
 ```bash
 git clone https://github.com/SambhavMayani/ADSBDB.git
@@ -10,40 +10,61 @@ cd ADSBDB
 python -m venv .venv
 source .venv/Scripts/activate
 python -m pip install -r requirements.txt
-python -m pip check
-python -m ruff check .
-python -m ruff format --check .
 python -m pytest -q
 python -m orchestration.pipeline --plan
 ```
 
-On Linux, activate with <font name="Courier">source .venv/bin/activate</font>. Install the pinned PyTorch version from the official CPU wheel index before the same requirements file. Installation needs Internet; default tests need neither model weights nor the wildlife dataset. Expected: passing checks and a 16-step plan.
+Expected: offline tests pass; a 16-step plan needs no data/models. Installation needs Internet. Linux activation/CPU wheel instructions: README.md.
 
-## Exercise real storage and the complete CLI
+## 2. Prepare models before the first pipeline run
+
+A **dataset** is the image/audio/text collection. Libraries provide code; **model weights** are pretrained parameters downloaded separately. Preparation neither trains models nor creates dataset embeddings. The pipeline loads cached weights offline; --with-acquisition does not download models. Git excludes data, weights and credentials.
 
 ```bash
-docker compose -p ecosentinel-tests -f docker-compose.test.yml up -d
-python -m pytest -m integration -q
 python -m exploitation_zone.prepare_models --download
-python -m orchestration.smoke --run --workdir data/assessor-smoke
-python -m orchestration.smoke --run --workdir data/assessor-smoke
+python -m multimodal_tasks.rag_model --download
+HF_HUB_OFFLINE=0 python -c "from huggingface_hub import snapshot_download; \
+from multimodal_tasks.generate import MODEL, REVISION; \
+snapshot_download(repo_id=MODEL, revision=REVISION, token=False)"
 ```
 
-Use a new smoke directory initially and the same directory on repetition. The test endpoint is port 19000, without a production volume. Expect three synthetic assets, seven vectors, and zero new vectors on the second run. Synthetic noise/tone inputs test execution, not wildlife relevance.
+Prepare once online; reuse caches. Expect "Embedding models ready". Qwen and BLIP are Task 3 prerequisites only. Exact reference evaluation requires the authors' matching data/storage/index, absent from Git.
 
-## Run the wildlife interface
-
-The Git repository excludes data, credentials and weights. For the reference demonstration, obtain the authors' data handoff and configure local .env credentials. Alternatively acquire a new sample as documented in docs/user_guide.md; its counts may differ. Prepare BLIP and Qwen explicitly using that guide. Do not regenerate the existing reference index.
+## 3. Start storage and select one dataset route
 
 ```bash
+cp -n .env.example .env
+# Set local storage credentials in .env before starting Docker.
 docker compose up -d
-python -m orchestration.reconcile
-# Once, with writers stopped and no existing destination:
+python orchestration/check_minio_connection.py
+```
+
+**A. No local raw files:** configure provider credentials, including XENO_CANTO_API_KEY in .env, then download through the three acquisition scripts and continue the pipeline:
+
+```bash
+python -m orchestration.pipeline --run --with-acquisition
+```
+
+**B. Raw files already local:** keep _metadata.json sidecars under data/raw_dataset/&lt;modality&gt;/&lt;species_id&gt;/ and skip acquisition:
+
+```bash
+python -m orchestration.pipeline --run
+```
+
+**C. Matching S3/Chroma already prepared:** skip A/B; run python -m orchestration.reconcile. Expect completed and no problems. The unchanged reference has 198 accepted assets / 6,021 vectors. Downloads may differ or fail on quotas; inspect logs. Full prerequisites/recovery: docs/user_guide.md.
+
+## 4. Create the query copy once, then start the interface
+
+```bash
 python -m orchestration.audit --source data/chromadb --snapshot data/search_index
 python -m webapp.server
 ```
 
-Open **http://127.0.0.1:8765**. The three tabs expose text exploration, image/audio similarity and RAG. Try a lynx habitat question, then an animal image plus habitat and diet; inspect citations and diagnostics. Qwen requires at least 2.5 GiB free RAM and can take minutes on CPU. Ctrl+C stops the web server. Never remove the reference Docker volume. See docs/user_guide.md for expected cases and troubleshooting.
+With writers stopped, copy to a new destination. This verifies/copies the existing database, without recomputing embeddings or copying media. The web protects data/chromadb/ from Chroma internal writes by opening this copy: our safety policy, not a persistence requirement. It costs disk and is not synchronised. Reuse if unchanged; after updates create a new path and use --index NEW_PATH.
+
+## 5. Inspect results and exercise the Tasks
+
+The pipeline does not start the web. Open **http://127.0.0.1:8765** after starting it. Try same-modality search, mixed image/text retrieval and a RAG habitat/diet question; inspect citations. Reports: reports/trusted_quality/&lt;modality&gt;/&lt;date&gt;/ (HTML, PNG, CSV, JSON); pipeline logs/JSON: reports/orchestration/. Qwen needs 2.5 GiB available RAM; CPU requests can take minutes. Ctrl+C stops the web. Detailed routes, checks and troubleshooting: **docs/user_guide.md**.
 
 
 ---
@@ -58,13 +79,13 @@ ADSDB P1<br/>Universitat Politècnica de Catalunya
 
 **Mario Rodrigo**<br/>**Sambhav**<br/>**Wassim**
 
-24 October 2026
+25 October 2026
 
 ## Project overview
 
 We built a local pipeline that makes heterogeneous wildlife material searchable and auditable. Images, recordings and text pass through separate ingestion, formatting, quality and vector-indexing stages. A single interface supports related-asset discovery, cross-modal exploration and questions answered from retrieved evidence.
 
-Our engineering priorities are reproducibility, explicit contracts, incremental execution and recoverable failures. The reference corpus contains 198 accepted assets and 6,021 persisted embeddings. We preserve original media and distinguish technical data quality, retrieval relevance and biological correctness.
+Our engineering priorities are reproducibility, explicit contracts, incremental execution and recoverable failures. The reference dataset contains 198 accepted assets and 6,021 persisted embeddings. We preserve original media and distinguish technical data quality, retrieval relevance and biological correctness.
 
 This report explains the domain, the value of the system, the reasons for each zone and model, the three analytical Tasks and the operations environment. It records observed validation and limitations rather than treating plausible model output as verified identification.
 
@@ -82,7 +103,7 @@ Wildlife information is fragmented across photographs, field recordings and spec
 
 EcoSentinel is a prototype evidence workspace for conservation educators, field-study teams and biodiversity analysts. A user can start from an image, recording or phrase, inspect related assets and ask a question grounded in the collection. The potential value is less manual catalogue switching and a traceable route from an answer to its underlying evidence. These are proposed benefits; we have not measured business adoption or time savings.
 
-## Sources and corpus
+## Sources and dataset
 
 | Modality | Reference assets | Source and acquisition |
 | --- | --- | --- |
@@ -100,7 +121,7 @@ The sample is small and curated. Images are balanced by design, but text coverag
 
 Raw assets and weights are not bundled in Git. Existing metadata includes different reuse terms, including non-commercial audio licences. Attribution must travel with a dataset handoff. The academic prototype does not establish commercial redistribution rights; a production application would need an asset-by-asset permissions review and expert validation.
 
-Source metadata and model references: docs/data_sources.md. Aggregate corpus evidence: docs/evidence/quality_*.json. The recorded counts refer to the audited reference installation, not a promise about later API downloads.
+Source metadata and model references: docs/data_sources.md. Aggregate dataset evidence: docs/evidence/quality_*.json. The recorded counts refer to the audited reference installation, not a promise about later API downloads.
 
 
 ---
@@ -156,7 +177,7 @@ These choices protect future analytical uses. A quiet interval may be ecological
 | Audio | 34/34 accepted; 2 low-RMS and 9 low-energy flags; median 40.91 s | Quiet recordings retained; longest recording 752.37 s. |
 | Text | 64/64 accepted; median 208.5 words; range 33–13,869 | Different source lengths motivate later segmentation. |
 
-The 19 October reference reports record 100% provenance-field coverage and no removals for this curated batch. This means the measured fields were populated, not that all content was correct. Before/after species distributions are unchanged; the lack of lizard audio remains visible. Synthetic pipeline reports are kept separate from these corpus observations.
+The 19 October reference reports record 100% provenance-field coverage and no removals for this curated batch. This means the measured fields were populated, not that all content was correct. Before/after species distributions are unchanged; the lack of lizard audio remains visible. Synthetic pipeline reports are kept separate from these dataset observations.
 
 Limitations are explicit: watermark and near-duplicate heuristics have no labelled precision/recall benchmark; text near-duplicate comparison is quadratic at the current small scale. Future expansion needs indexed duplicate candidates and annotated evaluation. Evidence: docs/evidence/quality_images.json, quality_audio.json and quality_text.json.
 
@@ -166,7 +187,7 @@ Limitations are explicit: watermark and near-duplicate heuristics have no labell
 
 # Exploitation Zone and Model Choices
 
-We store embeddings with asset IDs, segment positions, source keys, content hashes and policy fingerprints. The authoritative media remain in S3. Five collections meet the single-modality requirement while adding two explicitly shared spaces; a vector from one model is never treated as compatible with another merely because its dimension matches.
+Vectors retain asset/segment IDs, source keys, hashes and policy fingerprints; S3 retains the media. Three single-modality and two shared collections implement retrieval. Equal dimensions never establish compatibility between models.
 
 | Collection | Encoder and dimension | Vectors |
 | --- | --- | --- |
@@ -178,7 +199,7 @@ We store embeddings with asset IDs, segment positions, source keys, content hash
 
 ## Why these pretrained encoders
 
-**CLIP** supplies a common image/text representation, enabling semantic visual discovery without training on our small corpus. The multilingual text adapter is aligned to CLIP ViT-B/32, so Spanish/English queries can share the image space. Its captions-oriented representation is useful for visual concepts but less suited to detailed biological prose.
+**CLIP** supplies a common image/text representation, enabling semantic visual discovery without training on our small dataset. The multilingual text adapter is aligned to CLIP ViT-B/32, so Spanish/English queries can share the image space. Its captions-oriented representation is useful for visual concepts but less suited to detailed biological prose.
 
 **E5 small** provides multilingual passage retrieval with a smaller CPU footprint than larger alternatives. We use the prescribed query and passage prefixes and 384-dimensional normalised vectors. A dedicated text encoder complements CLIP for habitat and behavioural descriptions. **CLAP** adds genuine audio/text alignment; a speech recogniser would lose non-verbal animal sounds. The unfused model is used with 10-second, 48 kHz mono windows. Its language/domain limitations make English acoustic prompts preferable.
 
@@ -186,13 +207,15 @@ We store embeddings with asset IDs, segment positions, source keys, content hash
 
 Text windows use E5 320/40, multilingual CLIP 96/12 and CLAP 60/8 token window/overlap settings. These respect each configured encoder budget and reduce boundary loss. All tail segments are covered. Overlap and multiple spaces explain why 198 assets produce 6,021 vectors; the vectors are not 6,021 independent observations.
 
-Stable record IDs and complete part coverage allow unchanged assets to skip inference. Source or policy changes require explicit compatible updates; incompatible collections fail rather than mixing representations. Interrupted publication can be retried. Historical v1 fingerprints are preserved, while an immutable model manifest resolves previously null revisions. That manifest records observed cache commits; it is not retrospective proof of every original inference.
+Stable IDs, hashes and exact part coverage allow compatible assets to skip inference. Incompatible collections fail; partial publication can be retried. The immutable manifest resolves historical null revisions without changing v1 fingerprints, but records observed cache commits rather than retrospectively proving every original inference.
 
-Models are loaded sequentially with small batches and CPU as the default. This bounds live model families, although full-file audio decoding still scales with duration. Chroma snapshots protect the original index during queries; freshness is an explicit operational responsibility.
+Models run sequentially with small CPU batches; audio decoding still scales with duration.
 
-Model cards and exact revisions: <link href="https://huggingface.co/sentence-transformers/clip-ViT-B-32-multilingual-v1" color="#24546A">https://huggingface.co/sentence-transformers/clip-ViT-B-32-multilingual-v1</link>
+## Persistent index and independent query copy
 
-Additional primary references: huggingface.co/intfloat/multilingual-e5-small and huggingface.co/laion/clap-htsat-unfused. Exact commits and policies are in config/model_manifest.json and config/exploitation.yaml.
+Vectors persist in data/chromadb/ and survive restarts. We copy/hash-verify this database into data/search_index/ because Chroma may perform internal writes on opening. Search rejects the original path. This preservation policy is additional to persistence: copying performs no encoder inference and does not duplicate source media. It costs disk and freshness management. Stop writers and create a new copy after updates; --index selects it. A coordinated single-index service is an alternative.
+
+Revisions: config/model_manifest.json. Encoder policies: config/exploitation.yaml. Model cards: docs/data_sources.md.
 
 
 ---
@@ -218,7 +241,7 @@ For a federated query, E5, CLIP and CLAP produce separate rankings. Reciprocal R
 | --- | --- |
 | Explorar por texto | Text-only E5, either shared space, or all modalities; inspect sources and filters. |
 | Buscar similares | Upload an image or short recording; choose same-modality or mixed retrieval. |
-| Preguntar al corpus · RAG | Ask about the corpus, optionally with an uploaded or stored image; inspect cited claims and diagnostics. |
+| Preguntar al corpus · RAG | Ask about the dataset, optionally with an uploaded or stored image; inspect cited claims and diagnostics. |
 
 Result cards expose source lineage and related-asset actions. RAG shows candidate species as hypotheses, links claims to reference excerpts, and distinguishes complete answers, partial answers, abstention and technical errors. The user can inspect the model revision, request ID and runtime without needing a terminal.
 
@@ -248,7 +271,7 @@ Multi-aspect requests use constrained slots for up to two claims. An unsupported
 
 ## Failure states and observed behavior
 
-An evidence-based abstention differs from invalid JSON, a token limit or a generation timeout. Technical failures keep references/candidates visible. Generation is limited to 320 output tokens and 120 seconds, with four CPU threads and a 2.5 GiB available-memory check. All configured revisions, policy hashes and stage timings are auditable; uploads are not added to the corpus.
+An evidence-based abstention differs from invalid JSON, a token limit or a generation timeout. Technical failures keep references/candidates visible. Generation is limited to 320 output tokens and 120 seconds, with four CPU threads and a 2.5 GiB available-memory check. All configured revisions, policy hashes and stage timings are auditable; uploads are not added to the dataset.
 
 Native acceptance recorded five CLI cases: text habitat, stored-image habitat, conditional frog identification, unsupported genome and an unrelated query. A separate browser run answered both frog habitat and diet with verified excerpts in 131.8 seconds total (76.1 seconds generation). One lynx response was less directly relevant. These checks demonstrate execution and failure handling, not broad species-identification accuracy.
 
@@ -266,28 +289,30 @@ BLIP captioning: <link href="https://huggingface.co/Salesforce/blip-image-captio
 
 ## From independent scripts to a recoverable pipeline
 
-One orchestrator runs 16 sequential steps: storage checks, ingestion/promotion, three formatters, three validators, five collection stages and final reconciliation. Optional acquisition adds three steps. Subprocesses use the active Python interpreter without a shell. A local OS lock prevents overlapping orchestrator runs in the same checkout; it does not coordinate manual writers or another machine.
+One orchestrator runs 16 sequential steps: storage, ingestion/promotion, three formatters, three validators, five index stages and reconciliation. Acquisition adds three. Subprocesses use the active Python interpreter without a shell. A local OS lock prevents overlapping orchestrator runs in this checkout, but does not coordinate manual writers or other machines.
 
-Each stage has a deadline, UTF-8 logs and an atomic JSON audit trail. A failure stops later stages; interrupted children are terminated. Restarting at a chosen stage rechecks persisted objects and vector completeness instead of trusting the previous run report. Shared S3 clients apply bounded timeouts/retries. Credentials stay in .env and configured secrets are redacted from pipeline logs.
+Each stage has a timeout, UTF-8 logs and an atomic JSON report. Failures stop later steps; interrupted children terminate. Restarting rechecks persisted asset/vector state. Shared S3 clients have bounded retries. Credentials remain local and configured secrets are redacted from logs.
 
 ## Evidence at different levels
 
 | Level | Observed result and scope |
 | --- | --- |
 | Static quality | Ruff checks and one formatting standard across application code and tests; one pinned requirements file. |
-| Offline suite | 344 passing tests; 63.82% statement coverage. Generated fixtures, fault injection, temporary Chroma and HTTP. |
+| Offline suite | 364 passing tests; 64.40% offline statement coverage. With the isolated integration test, combined coverage is 71.82%; this is not model accuracy. |
 | Storage integration | One passing end-to-end test using isolated real S3/Chroma and deterministic encoders; repeat execution checked. |
-| CPU acceptance | Full CLI with three synthetic assets and seven vectors; native retrieval and RAG checked separately on the reference corpus. |
-| Preservation | Original Chroma file hashes and 6,021 counts checked; S3 keys, sizes and ETags compared. No corpus regeneration. |
+| CPU acceptance | Full CLI with three synthetic assets and seven vectors; native retrieval and RAG checked separately on the reference dataset. |
+| Preservation | Original Chroma file hashes and 6,021 counts checked; S3 keys, sizes and ETags compared. No dataset regeneration. |
 
-The final review strengthened segment completeness, rejected non-finite limits, unified S3 clients and removed obsolete patch redirects. Small persistent test indexes are explicitly materialised and closed on Windows. Regression tests exercise these failure boundaries.
+Fault-injection tests cover incomplete vectors, invalid policies, decoder/storage failures and preservation of accepted data. Temporary native indexes close on Windows.
 
-## Continuous integration and reproducibility limits
+## Automatic checks, reproducibility and limits
 
-GitHub Actions installs the same dependencies, runs offline checks on Windows and Linux, enforces a 60% coverage floor and runs isolated S3 integration on Linux. JUnit and coverage artifacts are retained. A locally passing suite does not prove a remote job passed; the authors must publish the final commit and verify that workflow before submission. Native model inference remains opt-in because caches, RAM and timings depend on the host.
+GitHub Actions is GitHub's automated test service. After a push or pull request, our workflow installs dependencies on fresh Windows/Linux machines, checks style and runs offline tests. A Linux job tests isolated S3 storage. The 60% coverage threshold means tests must execute 60% of measured code statements; it is not model accuracy. Test/coverage reports are saved. Real-model checks remain manual because weights, RAM and timings vary.
 
-The code and synthetic demonstration are reproducible from a clone. Exact corpus reproduction additionally needs its data handoff and pinned model cache. A fresh download may change source content. Other limitations include snapshot freshness, lack of a distributed transaction, quadratic text duplicate comparisons, duration-dependent audio memory, and the absence of a labelled retrieval/biological benchmark.
+Before submission, open the repository's Actions tab and verify a successful run for the submitted commit. Local test success alone does not confirm that remote result.
 
-Future evaluation needs held-out external inputs, absent species, relevance labels and false-abstention analysis.
+A clone can run offline tests and the synthetic demonstration. Reproducing the 198-asset reference also requires matching data, metadata and model weights. New downloads may differ. The instructions explain both data routes, the query copy and web startup.
 
-Assessment references: official ADSDB P1 guidelines, constraints C1–C16 and delivery section; mapping in docs/p1_requirements.md. Operational and test details: docs/pipeline_orchestration.md, docs/testing_and_validation.md and docs/evidence/.
+The query copy needs refreshing after data updates. Failures recover per asset, without a transaction across all zones. Pairwise text duplicate checks become expensive as data grows; long recordings need more decoding RAM. No expert-labelled benchmark yet measures retrieval or biological accuracy. Future evaluation should also measure unnecessary abstentions when relevant evidence exists.
+
+Requirement mapping: docs/p1_requirements.md. Full procedures and evidence: docs/user_guide.md, docs/testing_and_validation.md and docs/evidence/.

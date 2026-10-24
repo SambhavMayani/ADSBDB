@@ -1,0 +1,275 @@
+{
+  "recorded_at_utc": "2026-10-24T20:25:05.399102+00:00",
+  "method": "Real CPU retrieval on a disposable snapshot; no new corpus embeddings or MinIO writes.",
+  "scope": "Qualitative recorded retrieval examples, not a labelled accuracy benchmark. Selected slide ranks are explicit; asset labels are not verified identifications.",
+  "task1": {
+    "reference_id": "img_images_e0f1f4802d7fc1fccd1aa731a974c7d00b7f252f8e9bc542f7ad820615795efb_000000",
+    "reference_asset": "e0f1f4802d7fc1fccd1aa731a974c7d00b7f252f8e9bc542f7ad820615795efb",
+    "photo": {
+      "species_id": "lynx_pardinus",
+      "scientific_name": "Lynx pardinus",
+      "source_name": "wikimedia_commons",
+      "commons_title": "File:Iberian Lynx front (cropped).jpg",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Iberian_Lynx_front_(cropped).jpg",
+      "original_filename": "Iberian Lynx front (cropped).jpg",
+      "local_filename": "Iberian Lynx front (cropped).jpg",
+      "mime_type": "image/jpeg",
+      "width": 839,
+      "height": 1245,
+      "file_size_bytes": 137853,
+      "license": "CC BY 3.0 es",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/es/deed.en",
+      "creator": "http://www.lynxexsitu.es",
+      "credit": "http://www.lynxexsitu.es/index.php?accion=fotos&id=26#lince",
+      "sha256": "ed0aae76703b5cce3b3f48ad5de57e89111bcd0476a4cee8a2fc7e2581c3475a",
+      "local_path": "data/raw_dataset/images/lynx_pardinus/Iberian Lynx front (cropped).jpg"
+    },
+    "space": "images",
+    "selected_slide_ranks": [
+      1,
+      3
+    ],
+    "results": [
+      {
+        "rank": 1,
+        "id": "img_images_5eb1513dd1f1a61fdae334ea1a869fe5261ef43c99b67b208109d2d96aa4f264_000000",
+        "asset_id": "5eb1513dd1f1a61fdae334ea1a869fe5261ef43c99b67b208109d2d96aa4f264",
+        "modality": "images",
+        "species_id": "lynx_pardinus",
+        "source_name": "wikimedia_commons",
+        "source_key": "images/lynx_pardinus/wikimedia_commons$lynx_pardinus$05-10-2026_15-29-34$b6638949af1ae485.jpg",
+        "score": 0.9123236536979675,
+        "score_type": "cosine",
+        "space": "images",
+        "photo": {
+          "local_path": "data/raw_dataset/images/lynx_pardinus/F 18.04.02 Observatorio Lince PTA-GC.190-1 (27314142758).jpg",
+          "source_url": "https://commons.wikimedia.org/wiki/File:F_18.04.02_Observatorio_Lince_PTA-GC.190-1_(27314142758).jpg",
+          "creator": "Junta de Andalucía",
+          "license": "CC BY-SA 2.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/2.0"
+        }
+      },
+      {
+        "rank": 2,
+        "id": "img_images_da3bde5e5eaf80316cfd98979b77a6e670ccaba8074f5ef441870362f4f62465_000000",
+        "asset_id": "da3bde5e5eaf80316cfd98979b77a6e670ccaba8074f5ef441870362f4f62465",
+        "modality": "images",
+        "species_id": "lynx_pardinus",
+        "source_name": "wikimedia_commons",
+        "source_key": "images/lynx_pardinus/wikimedia_commons$lynx_pardinus$05-10-2026_15-29-34$2f56f6c69d40ac9a.jpg",
+        "score": 0.8970884680747986,
+        "score_type": "cosine",
+        "space": "images",
+        "photo": {
+          "local_path": "data/raw_dataset/images/lynx_pardinus/F 18.04.02 Observatorio Lince PTA-GC.190-1 (27314142758) (cropped).jpg",
+          "source_url": "https://commons.wikimedia.org/wiki/File:F_18.04.02_Observatorio_Lince_PTA-GC.190-1_(27314142758)_(cropped).jpg",
+          "creator": "Junta de Andalucía",
+          "license": "CC BY-SA 2.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/2.0"
+        }
+      },
+      {
+        "rank": 3,
+        "id": "img_images_f930055cb94232949c8b6445d04d2230d89255250e5b0e95cb9908c7516005b0_000000",
+        "asset_id": "f930055cb94232949c8b6445d04d2230d89255250e5b0e95cb9908c7516005b0",
+        "modality": "images",
+        "species_id": "lynx_pardinus",
+        "source_name": "wikimedia_commons",
+        "source_key": "images/lynx_pardinus/wikimedia_commons$lynx_pardinus$05-10-2026_15-29-35$f3842c0826c68333.jpg",
+        "score": 0.871124804019928,
+        "score_type": "cosine",
+        "space": "images",
+        "photo": {
+          "local_path": "data/raw_dataset/images/lynx_pardinus/Female Iberian Lynx (Lynx pardinus), La Lancha, Parque natural de la Sierra de Andújar, España (33022496950).jpg",
+          "source_url": "https://commons.wikimedia.org/wiki/File:Female_Iberian_Lynx_(Lynx_pardinus),_La_Lancha,_Parque_natural_de_la_Sierra_de_And%C3%BAjar,_Espa%C3%B1a_(33022496950).jpg",
+          "creator": "Frank Vassen from Brussels, Belgium",
+          "license": "CC BY 2.0",
+          "license_url": "https://creativecommons.org/licenses/by/2.0"
+        }
+      },
+      {
+        "rank": 4,
+        "id": "img_images_3e56fd6a3fedc5d879a7c8db8f7a50bf3a7b3e50ded01caad9fb19da54355c6a_000000",
+        "asset_id": "3e56fd6a3fedc5d879a7c8db8f7a50bf3a7b3e50ded01caad9fb19da54355c6a",
+        "modality": "images",
+        "species_id": "lynx_pardinus",
+        "source_name": "wikimedia_commons",
+        "source_key": "images/lynx_pardinus/wikimedia_commons$lynx_pardinus$05-10-2026_15-29-34$ca1613b7fdf05b1f.jpg",
+        "score": 0.8380830883979797,
+        "score_type": "cosine",
+        "space": "images",
+        "photo": {
+          "local_path": "data/raw_dataset/images/lynx_pardinus/Female Iberian Lynx (Lynx pardinus), La Lancha, Parque natural de la Sierra de Andújar, Andalucía, España - Flickr - Frank.Vassen.jpg",
+          "source_url": "https://commons.wikimedia.org/wiki/File:Female_Iberian_Lynx_(Lynx_pardinus),_La_Lancha,_Parque_natural_de_la_Sierra_de_And%C3%BAjar,_Andaluc%C3%ADa,_Espa%C3%B1a_-_Flickr_-_Frank.Vassen.jpg",
+          "creator": "Frank Vassen from Brussels, Belgium",
+          "license": "CC BY 2.0",
+          "license_url": "https://creativecommons.org/licenses/by/2.0"
+        }
+      },
+      {
+        "rank": 5,
+        "id": "img_images_4b1458e4c759b8f96c6da402f2cf755bfd6d87f1d8d83f3da08a714e2fb3a1fd_000000",
+        "asset_id": "4b1458e4c759b8f96c6da402f2cf755bfd6d87f1d8d83f3da08a714e2fb3a1fd",
+        "modality": "images",
+        "species_id": "canis_lupus",
+        "source_name": "wikimedia_commons",
+        "source_key": "images/canis_lupus/wikimedia_commons$canis_lupus$05-10-2026_15-29-32$917542c1c65d6b1a.jpg",
+        "score": 0.7917423248291016,
+        "score_type": "cosine",
+        "space": "images",
+        "photo": {
+          "local_path": "data/raw_dataset/images/canis_lupus/Cottage 305-20110726 (5988680511).jpg",
+          "source_url": "https://commons.wikimedia.org/wiki/File:Cottage_305-20110726_(5988680511).jpg",
+          "creator": "Roger Ahlbrand from Toronto, Canada",
+          "license": "CC BY 2.0",
+          "license_url": "https://creativecommons.org/licenses/by/2.0"
+        }
+      }
+    ],
+    "limitation": "Four lynx catalogue labels and one wolf label; a cropped near duplicate remains at rank 2. Conservative duplicate checks do not guarantee removal of all variants."
+  },
+  "task2": {
+    "query": "Iberian lynx in its natural habitat",
+    "space": "image_text",
+    "selected_slide_ranks": {
+      "text": 4,
+      "image": 5
+    },
+    "diversity_policy": "Four images and four texts, when available; not pure cosine sorting across all returned assets.",
+    "quoted_excerpt": "About half the size of Eurasian Lynx",
+    "results": [
+      {
+        "rank": 1,
+        "id": "mmclip_text_6e6a4bff20c01450f854d5d6030ac1576b28e6dfff16445db73df761d0deaa15_000046",
+        "asset_id": "6e6a4bff20c01450f854d5d6030ac1576b28e6dfff16445db73df761d0deaa15",
+        "modality": "text",
+        "species_id": "lynx_pardinus",
+        "source_name": "wikipedia",
+        "source_key": "text/lynx_pardinus/wikipedia$lynx_pardinus$16-10-2026_15-53-44$843a5bad8ab66af3.txt",
+        "score": 0.8801965713500977,
+        "score_type": "cosine",
+        "space": "image_text"
+      },
+      {
+        "rank": 2,
+        "id": "mmclip_text_f10d136f0c6f5fdd22748d6d7bdd63f8faf7383a75d6b8b75ce36d31bed16acb_000000",
+        "asset_id": "f10d136f0c6f5fdd22748d6d7bdd63f8faf7383a75d6b8b75ce36d31bed16acb",
+        "modality": "text",
+        "species_id": "lynx_pardinus",
+        "source_name": "gbif",
+        "source_key": "text/lynx_pardinus/gbif$lynx_pardinus$16-10-2026_15-53-44$f03073070c53f51a.txt",
+        "score": 0.7938945889472961,
+        "score_type": "cosine",
+        "space": "image_text"
+      },
+      {
+        "rank": 3,
+        "id": "mmclip_text_8dda524f035df0125148ca43c9a1b422e669329b82d1c5eb23decd7cb91c74c1_000038",
+        "asset_id": "8dda524f035df0125148ca43c9a1b422e669329b82d1c5eb23decd7cb91c74c1",
+        "modality": "text",
+        "species_id": "lynx_pardinus",
+        "source_name": "wikipedia",
+        "source_key": "text/lynx_pardinus/wikipedia$lynx_pardinus$16-10-2026_15-53-44$2633e0d26d98f6e7.txt",
+        "score": 0.7911578416824341,
+        "score_type": "cosine",
+        "space": "image_text"
+      },
+      {
+        "rank": 4,
+        "id": "mmclip_text_a2ae626b78942dafac92a90d7e7e6261da5059db0a17db3bd726501ec7a228f8_000000",
+        "asset_id": "a2ae626b78942dafac92a90d7e7e6261da5059db0a17db3bd726501ec7a228f8",
+        "modality": "text",
+        "species_id": "lynx_pardinus",
+        "source_name": "gbif",
+        "source_key": "text/lynx_pardinus/gbif$lynx_pardinus$16-10-2026_15-53-44$65e214624edb7cc2.txt",
+        "score": 0.7783440947532654,
+        "score_type": "cosine",
+        "space": "image_text"
+      },
+      {
+        "rank": 5,
+        "id": "mmclip_images_3e56fd6a3fedc5d879a7c8db8f7a50bf3a7b3e50ded01caad9fb19da54355c6a_000000",
+        "asset_id": "3e56fd6a3fedc5d879a7c8db8f7a50bf3a7b3e50ded01caad9fb19da54355c6a",
+        "modality": "images",
+        "species_id": "lynx_pardinus",
+        "source_name": "wikimedia_commons",
+        "source_key": "images/lynx_pardinus/wikimedia_commons$lynx_pardinus$05-10-2026_15-29-34$ca1613b7fdf05b1f.jpg",
+        "score": 0.3315119743347168,
+        "score_type": "cosine",
+        "space": "image_text",
+        "photo": {
+          "local_path": "data/raw_dataset/images/lynx_pardinus/Female Iberian Lynx (Lynx pardinus), La Lancha, Parque natural de la Sierra de Andújar, Andalucía, España - Flickr - Frank.Vassen.jpg",
+          "source_url": "https://commons.wikimedia.org/wiki/File:Female_Iberian_Lynx_(Lynx_pardinus),_La_Lancha,_Parque_natural_de_la_Sierra_de_And%C3%BAjar,_Andaluc%C3%ADa,_Espa%C3%B1a_-_Flickr_-_Frank.Vassen.jpg",
+          "creator": "Frank Vassen from Brussels, Belgium",
+          "license": "CC BY 2.0",
+          "license_url": "https://creativecommons.org/licenses/by/2.0"
+        }
+      },
+      {
+        "rank": 6,
+        "id": "mmclip_images_e0f1f4802d7fc1fccd1aa731a974c7d00b7f252f8e9bc542f7ad820615795efb_000000",
+        "asset_id": "e0f1f4802d7fc1fccd1aa731a974c7d00b7f252f8e9bc542f7ad820615795efb",
+        "modality": "images",
+        "species_id": "lynx_pardinus",
+        "source_name": "wikimedia_commons",
+        "source_key": "images/lynx_pardinus/wikimedia_commons$lynx_pardinus$05-10-2026_15-29-35$ed0aae76703b5cce.jpg",
+        "score": 0.33120954036712646,
+        "score_type": "cosine",
+        "space": "image_text",
+        "photo": {
+          "local_path": "data/raw_dataset/images/lynx_pardinus/Iberian Lynx front (cropped).jpg",
+          "source_url": "https://commons.wikimedia.org/wiki/File:Iberian_Lynx_front_(cropped).jpg",
+          "creator": "http://www.lynxexsitu.es",
+          "license": "CC BY 3.0 es",
+          "license_url": "https://creativecommons.org/licenses/by/3.0/es/deed.en"
+        }
+      },
+      {
+        "rank": 7,
+        "id": "mmclip_images_5eb1513dd1f1a61fdae334ea1a869fe5261ef43c99b67b208109d2d96aa4f264_000000",
+        "asset_id": "5eb1513dd1f1a61fdae334ea1a869fe5261ef43c99b67b208109d2d96aa4f264",
+        "modality": "images",
+        "species_id": "lynx_pardinus",
+        "source_name": "wikimedia_commons",
+        "source_key": "images/lynx_pardinus/wikimedia_commons$lynx_pardinus$05-10-2026_15-29-34$b6638949af1ae485.jpg",
+        "score": 0.32384783029556274,
+        "score_type": "cosine",
+        "space": "image_text",
+        "photo": {
+          "local_path": "data/raw_dataset/images/lynx_pardinus/F 18.04.02 Observatorio Lince PTA-GC.190-1 (27314142758).jpg",
+          "source_url": "https://commons.wikimedia.org/wiki/File:F_18.04.02_Observatorio_Lince_PTA-GC.190-1_(27314142758).jpg",
+          "creator": "Junta de Andalucía",
+          "license": "CC BY-SA 2.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/2.0"
+        }
+      },
+      {
+        "rank": 8,
+        "id": "mmclip_images_f930055cb94232949c8b6445d04d2230d89255250e5b0e95cb9908c7516005b0_000000",
+        "asset_id": "f930055cb94232949c8b6445d04d2230d89255250e5b0e95cb9908c7516005b0",
+        "modality": "images",
+        "species_id": "lynx_pardinus",
+        "source_name": "wikimedia_commons",
+        "source_key": "images/lynx_pardinus/wikimedia_commons$lynx_pardinus$05-10-2026_15-29-35$f3842c0826c68333.jpg",
+        "score": 0.32024139165878296,
+        "score_type": "cosine",
+        "space": "image_text",
+        "photo": {
+          "local_path": "data/raw_dataset/images/lynx_pardinus/Female Iberian Lynx (Lynx pardinus), La Lancha, Parque natural de la Sierra de Andújar, España (33022496950).jpg",
+          "source_url": "https://commons.wikimedia.org/wiki/File:Female_Iberian_Lynx_(Lynx_pardinus),_La_Lancha,_Parque_natural_de_la_Sierra_de_And%C3%BAjar,_Espa%C3%B1a_(33022496950).jpg",
+          "creator": "Frank Vassen from Brussels, Belgium",
+          "license": "CC BY 2.0",
+          "license_url": "https://creativecommons.org/licenses/by/2.0"
+        }
+      }
+    ]
+  },
+  "original_index_unchanged": true,
+  "original_counts": {
+    "ecosentinel_audio_clap_v1": 357,
+    "ecosentinel_audio_text_clap_v1": 3254,
+    "ecosentinel_image_text_clip_v1": 1763,
+    "ecosentinel_images_clip_v1": 100,
+    "ecosentinel_text_e5_v1": 547
+  }
+}

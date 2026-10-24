@@ -1,0 +1,87 @@
+{
+  "scope": "Editable charts derived from recorded report data; no corpus processing or recalculation of per-asset measurements.",
+  "images": {
+    "source": "docs/evidence/quality_images.json",
+    "species_before": {
+      "alcedo_atthis": 10,
+      "aquila_chrysaetos": 10,
+      "bubo_bubo": 10,
+      "canis_lupus": 10,
+      "cervus_elaphus": 10,
+      "erithacus_rubecula": 10,
+      "lynx_pardinus": 10,
+      "pelophylax_perezi": 10,
+      "sus_scrofa": 10,
+      "timon_lepidus": 10
+    },
+    "species_after": {
+      "alcedo_atthis": 10,
+      "aquila_chrysaetos": 10,
+      "bubo_bubo": 10,
+      "canis_lupus": 10,
+      "cervus_elaphus": 10,
+      "erithacus_rubecula": 10,
+      "lynx_pardinus": 10,
+      "pelophylax_perezi": 10,
+      "sus_scrofa": 10,
+      "timon_lepidus": 10
+    },
+    "distribution_jsd_bits": 0,
+    "species_order": [
+      "alcedo_atthis",
+      "aquila_chrysaetos",
+      "bubo_bubo",
+      "canis_lupus",
+      "cervus_elaphus",
+      "erithacus_rubecula",
+      "lynx_pardinus",
+      "pelophylax_perezi",
+      "sus_scrofa",
+      "timon_lepidus"
+    ],
+    "display_labels": [
+      "Kingfisher",
+      "G. eagle",
+      "Eagle owl",
+      "Wolf",
+      "Red deer",
+      "Robin",
+      "I. lynx",
+      "Frog",
+      "Wild boar",
+      "O. lizard"
+    ]
+  },
+  "audio": {
+    "source_local_report": "reports/trusted_quality/audio/20261019T173341Z/metrics.csv",
+    "source_csv_sha256": "c4c8913991c2c1eb677e8fd0c3d3a54bdd3659a977adc73c8386bc30c79f03d3",
+    "metric": "low_energy_window_pct",
+    "units": "Percent of 50-ms windows in each recording",
+    "bin_edges_pct": [
+      0,
+      20,
+      40,
+      60,
+      80,
+      100
+    ],
+    "bin_interpretation": "Left-inclusive, right-exclusive; final interval includes 100. Fixed 20-percentage-point bins for presentation; original HTML has six data-dependent bins.",
+    "formatted_counts": [
+      12,
+      4,
+      5,
+      4,
+      9
+    ],
+    "trusted_counts": [
+      12,
+      4,
+      5,
+      4,
+      9
+    ],
+    "recordings_evaluated": 34,
+    "recordings_accepted": 34,
+    "many_low_energy_warnings": 9
+  }
+}

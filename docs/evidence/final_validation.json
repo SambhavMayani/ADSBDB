@@ -189,5 +189,112 @@
     "vectors": 6021,
     "failures": [],
     "original_files_unchanged": true
+  },
+  "input_boundary_review": {
+    "recorded_at_utc": "2026-10-24T21:26:54.042Z",
+    "scope": "Subsequent source/fixture regression and presentation review; earlier native CLI/model evidence above remains separately dated.",
+    "offline": {
+      "tests": 364,
+      "failures": 0,
+      "errors": 0,
+      "local_report": "reports/validation/inputs_offline.xml"
+    },
+    "integration": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "local_report": "reports/validation/inputs_integration.xml"
+    },
+    "coverage_offline": {
+      "covered_statements": 3393,
+      "total_statements": 5269,
+      "percent": 64.4,
+      "local_report": "reports/validation/inputs_coverage.xml"
+    },
+    "coverage_combined": {
+      "covered_statements": 3784,
+      "total_statements": 5269,
+      "percent": 71.82,
+      "local_report": "reports/validation/inputs_coverage_combined.xml"
+    },
+    "new_cases": 20,
+    "change": "Only pure image decoding OSError becomes a quality rejection. Storage failures remain operational, and previous accepted bytes are preserved.",
+    "production_pipeline_reexecuted": false,
+    "retrieval_examples": "docs/presentation/task_examples.json",
+    "chroma_preservation": {
+      "checked_at_utc": "2026-10-24T21:33:09.761364+00:00",
+      "original_files_identical_to_delivery_baseline": true,
+      "chroma_counts": {
+        "ecosentinel_audio_clap_v1": 357,
+        "ecosentinel_audio_text_clap_v1": 3254,
+        "ecosentinel_image_text_clip_v1": 1763,
+        "ecosentinel_images_clip_v1": 100,
+        "ecosentinel_text_e5_v1": 547
+      },
+      "method": "Files opened for hashing and SQLite mode=ro only; no Chroma client or encoder."
+    },
+    "source_sha256": {
+      "trusted_zone\\quality\\image_quality.py": "b98260f4e64be149eaa8383878fd9b855d9fa6368d693c7d17f07e7c47e69394",
+      "tests\\test_input_boundaries.py": "dbfd6b7a88b8fc07c1f36710804739f604ffbd0c18768e682f8e0422a269974b"
+    }
+  },
+  "presentation_review": {
+    "slides": 19,
+    "target_seconds": 1160,
+    "script_pages": 20,
+    "all_slides_and_script_pages_visually_reviewed": true,
+    "package_integrity": "pass",
+    "layout_and_font_policy": "pass",
+    "first_party_import": "pass",
+    "native_powerpoint_rendering_verified": false,
+    "sha256": {
+      "docs\\presentation\\EcoSentinel_presentation.pptx": "f300ee5d595ee8a0e72e5482869c69cacca53830c3d138d20c2e8ec60623417b",
+      "docs\\presentation\\EcoSentinel_presentation.pdf": "2b850f7d1c7eeb1d47ba42258a281adde012556d53a1cde1f40c9140a301a781",
+      "docs\\presentation\\speaker_script.pdf": "c3668aee2f83ccbf6f349c5d164bf9aaae77181e698b713c3017a9f63217e075"
+    },
+    "editable_chart_count": 2,
+    "chart_data_workbooks_verified": true,
+    "chart_data_source": "docs/presentation/quality_charts.json"
+  },
+  "documentation_review": {
+    "recorded_at_utc": "2026-10-24T23:04:28.336207+00:00",
+    "scope": "Documentation only: syntax, CLI plans/help, PDF layout/text; no data acquisition, model preparation, pipeline run, S3 writes or Chroma clients.",
+    "official_statement": "P1 - Multimodal Data Management.pdf, delivery section page 15; C15/C16 page 14.",
+    "physical_pages": 9,
+    "unnumbered_instructions_pages": 1,
+    "numbered_report_pages_including_cover": 8,
+    "all_pages_visually_reviewed": true,
+    "horizontal_overflow_characters": 0,
+    "bash_blocks_syntax_checked": 28,
+    "read_only_cli_checks_passed": 6,
+    "topics": [
+      "Install libraries separately from pretrained model weights; prepare embedding models before pipeline.",
+      "Qwen/BLIP are separate Task 3 prerequisites; cache reuse and local loading.",
+      "No raw data: storage, provider key, three acquisition adapters, 19-step pipeline and acquisition failure recovery.",
+      "Existing raw data: metadata layout and 16-step pipeline without acquisition.",
+      "Prepared S3/index: reconcile without unnecessary rebuilding; reference counts are conditional.",
+      "Query copy purpose, persistence distinction, disk cost, freshness, safe new-path refresh.",
+      "Web startup, Tasks, completion criteria and quality/pipeline report locations."
+    ],
+    "production_pipeline_reexecuted": false,
+    "historical_artifact_hashes": "Top-level sha256/report fields describe the earlier dated review. Current document hashes follow here.",
+    "sha256": {
+      "docs/ecosentinel_report.pdf": "7e787eb1e74804bc78132089437a1f18a6fa1223ef0b9b95ce1671039b22bf7f",
+      "docs/final_report.md": "f3b43cff124a7eac78071abfeafde19f534f827912a2abc4596938677425e893",
+      "docs/user_guide.md": "b98e7fa5924283133b14bdfb18bbc261681ff457a4ef01d2c221c684c07c1401",
+      "README.md": "c1dd7923e46dfc31c03eb592c7ed1f0f5c08360780e8f573d4c99b41eb5a4aa6",
+      "docs/pipeline_orchestration.md": "0556e0a3a10841697e240450737a5df91bd7358618990a449d9ddd1d3e6ad517",
+      "docs/testing_and_validation.md": "fc54a5e23a808cdde0fc051715f1317c155371bc2564eeae80e0c70e57a5c06d"
+    },
+    "local_checks": "reports/validation/report_refresh/documentation_checks.json",
+    "clarity_revision_at_utc": "2026-10-24T23:15:56.292384+00:00",
+    "clarity_revision": "Define GitHub Actions, coverage threshold and remote result checks; explain data prerequisites, query-copy freshness and system limits in plain English.",
+    "cleanup": {
+      "recorded_at_utc": "2026-10-24T23:20:28.3619278Z",
+      "scope": "Targeted nonrecursive cleanup after source/reference and exact-copy checks. Complete final authoring sources, test evidence, display assets, original/query indexes and delivered documents retained.",
+      "removed_files": 178,
+      "reclaimed_bytes": 39035869.0,
+      "local_manifest": "reports/validation/report_refresh/cleanup.json"
+    }
   }
 }

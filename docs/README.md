@@ -1,49 +1,33 @@
-# EcoSentinel — Documentación del proyecto
+# EcoSentinel documentation
 
-Revisión final: 24-10-2026. Python 3.11, Windows y CPU. El corpus de referencia contiene 198 activos aceptados (100 imágenes, 34 audios y 64 textos) y 6.021 embeddings en cinco colecciones.
+Reference installation: **198 accepted assets and 6,021 embeddings**. Commands use Python 3.11 and Git Bash; inference runs on CPU.
 
-Para evaluar o utilizar el proyecto, empezar por la **[memoria en inglés](ecosentinel_report.pdf)** y el **[manual de usuario](user_guide.md)**. La memoria tiene ocho páginas, incluida la portada con los tres autores, más una página inicial de instrucciones sin numerar, excluida del límite oficial.
+## Start here
 
-| Documento | Contenido |
+1. [Project report](ecosentinel_report.pdf): domain, purpose, architecture, justified choices and Tasks 1–3. Eight numbered pages including the cover, plus an unnumbered instructions page. [Editable report source](final_report.md).
+2. [User and assessor guide](user_guide.md): installation, fresh-clone setup, interface cases and expected outcomes.
+3. [P1 requirements](p1_requirements.md): mapping from the statement to implementation and evidence.
+4. [Presentation and script](presentation/README.md): English group defence with real examples and speaking notes.
+
+## Technical references
+
+| Responsibility | Maintained reference |
 |---|---|
-| [Landing Zone](landing_zone_documentation.md) | Adquisición opcional, Security Gate, procedencia y persistencia incremental |
-| [Formatted Zone](formatted_zone_documentation.md) | Conversión a JPEG, FLAC y TXT con trazabilidad |
-| [Trusted Zone](trusted_zone_documentation.md) | Políticas de calidad, duplicados, aceptación e informes |
-| [Exploitation Zone](exploitation_zone_documentation.md) | Colecciones, modelos, segmentación, indexación y conservación del índice |
-| [Tasks 1 y 2](multimodal_tasks_documentation.md) | Búsqueda del mismo tipo y multimodal; rankings, comandos, interfaz y pruebas |
-| [Task 3](generative_tasks_documentation.md) | RAG con Qwen, recuperación E5/CLIP, adaptación visual BLIP, citas y abstención |
-| [Orquestación](pipeline_orchestration.md) | Pipeline de 16 pasos, bloqueo, recuperación, logs y ejecución aislada |
-| [Testing y validación](testing_and_validation.md) | Capas de prueba, evidencias locales, cobertura y CI |
-| [Requisitos P1](p1_requirements.md) | Correspondencia con el enunciado y criterios verificables |
-| [Auditoría técnica](technical_audit.md) | Estado inicial, comparación del ZIP, problemas priorizados y decisiones de integración |
-| [Guion de demostración](demo.md) | Instalación, búsquedas, generación y comprobaciones para la presentación |
-| [Memoria final PDF](ecosentinel_report.pdf) · [fuente Markdown](final_report.md) | Contexto, valor del dominio, arquitectura, decisiones, Tasks 1–3, interfaz y operaciones, en inglés |
-| [Manual de usuario](user_guide.md) | Instalación CPU, comandos Git Bash, casos de interfaz y resultados esperados, en inglés |
-| [Datos y modelos](data_sources.md) | Procedencia, licencias, decisiones de modelos y reproducción sin el corpus privado |
-| [Evidencias versionadas](evidence/README.md) | Resúmenes revisables de calidad, pruebas, modelos reales y conservación del corpus |
-| [Presentación y guion](presentation/README.md) | Defensa de 15 minutos en inglés, PowerPoint, PDF y guion por persona y diapositiva |
-| [Registro de decisiones](decision_log.md) | Decisiones históricas y compromisos de arquitectura |
+| Acquire and preserve originals | [Landing](landing_zone_documentation.md) |
+| Standardise representations | [Formatted](formatted_zone_documentation.md) |
+| Evaluate quality and duplicates | [Trusted](trusted_zone_documentation.md) |
+| Segment, encode and persist vectors | [Exploitation](exploitation_zone_documentation.md) |
+| Retrieve within and across modalities | [Tasks 1 and 2](multimodal_tasks_documentation.md) |
+| Generate with retrieved evidence | [Task 3 / RAG](generative_tasks_documentation.md) |
+| Execute, recover and reconcile | [Orchestration](pipeline_orchestration.md) |
 
-## Estado y alcance de las evidencias
+## Decisions and validation
 
-Landing, Formatted, Trusted, Exploitation, las tres tareas y la interfaz local están implementados. Las pruebas offline, la integración con almacenamiento aislado, el CLI completo con modelos reales y la aceptación del corpus se distinguen en la guía de validación. GitHub Actions está configurado; una ejecución local no demuestra que el workflow remoto haya pasado.
+- [Architecture decisions](decision_log.md): current choices, rationale and tradeoffs.
+- [Testing and validation](testing_and_validation.md): reproducible checks, adversarial cases, results and limits.
+- [Data and model provenance](data_sources.md): sources, licences, model choices and corpus handoff.
+- [Selected evidence](evidence/README.md): portable summaries; complete runtime reports remain local and ignored.
 
-Los datos originales y los informes completos generados no se incorporan a Git; se incluyen resúmenes seleccionados en `docs/evidence/`. Las consultas usan `data/search_index/`, una instantánea separada de `data/chromadb/`. Los datos de prueba se guardan en un servicio S3 independiente, puerto 19000, y en directorios locales ignorados.
+The report gives the narrative; the user guide gives the procedure; technical references define each component. Historical audit and duplicate demo instructions have been consolidated into these maintained documents. Git retains their history.
 
-## Organización
-
-```text
-config/              contratos, políticas y manifiesto de modelos
-landing_zone/        adquisición y persistencia
-formatted_zone/      representación por modalidad
-trusted_zone/        validación, perfiles e informes
-exploitation_zone/   segmentación, encoders y almacenamiento vectorial
-orchestration/       ejecución, auditoría, conciliación y aceptación
-multimodal_tasks/    búsquedas y generación
-webapp/              servidor local y frontend sin compilación
-tests/               pruebas y fixtures aislados
-.github/workflows/   CI Linux y Windows
-docs/                documentación mantenida en Git
-```
-
-Los valores efectivos proceden de los YAML y del código. Actualizar el documento de la zona cuando cambie su comportamiento y el registro de decisiones cuando exista un compromiso arquitectónico nuevo. Los informes fechados son evidencia de una ejecución concreta, no una garantía de calidad biológica ni de futuros datasets.
+Original data, model weights, runtime reports and secrets do not belong in Git. Queries use an independent Chroma snapshot. Tests use generated inputs and isolated storage rather than the reference MinIO service. Update the relevant reference when behavior changes and record measured outcomes separately from configured capabilities.

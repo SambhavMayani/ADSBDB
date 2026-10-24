@@ -1,6 +1,6 @@
 # Data and model provenance
 
-EcoSentinel uses a curated Iberian wildlife reference corpus, not a labelled benchmark. The reference installation has 198 accepted assets across ten configured species. Source labels and licences are provider provenance; technical acceptance does not independently verify them.
+EcoSentinel uses a curated Iberian wildlife reference dataset, not a labelled benchmark. A dataset is the collection of source image, audio and text files; embeddings are numeric representations of those files or their segments. The reference installation has 198 accepted assets across ten configured species. Source labels and licences are provider provenance; technical acceptance does not independently verify them.
 
 ## Original data
 

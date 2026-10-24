@@ -41,15 +41,20 @@ def _phash(grey: np.ndarray) -> int:
 
 def analyze(data: bytes, config: dict) -> tuple[dict, ImageFeatures]:
     """Fully decode a bounded JPEG and return metrics plus duplicate features."""
-    with Image.open(io.BytesIO(data)) as image:
-        if image.format != 'JPEG':
-            raise ValueError(f'Expected JPEG, received {image.format}')
-        width, height = image.size
-        if width * height > config['max_megapixels'] * 1_000_000:
-            raise ValueError('resolution_limit_exceeded')
-        # Orientation metadata changes perceived pixels; use it for analysis only.
-        rgb = ImageOps.exif_transpose(image).convert('RGB')
-        pixels = np.asarray(rgb)
+    # Decode in isolation: an OSError here describes input bytes, whereas an
+    # OSError from S3 must remain an operational failure in the caller.
+    try:
+        with Image.open(io.BytesIO(data)) as image:
+            if image.format != 'JPEG':
+                raise ValueError(f'Expected JPEG, received {image.format}')
+            width, height = image.size
+            if width * height > config['max_megapixels'] * 1_000_000:
+                raise ValueError('resolution_limit_exceeded')
+            # Orientation metadata changes perceived pixels; use it for analysis only.
+            rgb = ImageOps.exif_transpose(image).convert('RGB')
+            pixels = np.asarray(rgb)
+    except OSError as exc:
+        raise ValueError(f'invalid_image_payload:{type(exc).__name__}') from exc
 
     if pixels.size == 0:
         raise ValueError('empty_pixels')
