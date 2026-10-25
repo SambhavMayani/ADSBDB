@@ -72,6 +72,16 @@ function message(text,error=false) {
   $('message').hidden=!text;
   $('message').className=error?'error':'';
 }
+function searchLimit() {
+  const input = $('limit');
+  const value = input.valueAsNumber;
+  if (!Number.isInteger(value) || value < 1 || value > 50) {
+    message('Elige una cantidad entera de 1 a 50 en Explorar por texto o Buscar similares.', true);
+    if (!input.disabled) { input.reportValidity(); input.focus(); }
+    return null;
+  }
+  return value;
+}
 async function api(path,payload) {
   const r=await fetch(path,payload? {
     method:'POST',headers: {
@@ -119,9 +129,13 @@ function card(row) {
   ]]) {
     const b=element('button',label);
     b.type='button';
-    b.addEventListener('click',()=>run('/api/similar', {
-      id:row.id,space:row.space,limit:8,species:$('species').value,...flags
-    }));
+    b.addEventListener('click',()=> {
+      const limit = searchLimit();
+      if (limit === null) return;
+      run('/api/similar', {
+        id:row.id,space:row.space,limit,species:$('species').value,...flags
+      });
+    });
     body.append(b);
   }
   c.append(body);
@@ -150,7 +164,7 @@ async function run(path,payload) {
       results=results.references.map(row => ({...row, snippet: row.excerpt || row.snippet}));
     }
     $('result-title').textContent=generatedResult?'Fuentes recuperadas del corpus.':results.length?'Señales conectadas.':'Sin coincidencias para estos filtros.';
-    $('result-meta').textContent=results.length+(generatedResult?' referencias · ':' activos · ')+((performance.now()-start)/1000).toFixed(1)+' s';
+    $('result-meta').textContent=results.length+(generatedResult?' referencias · ':' activos · límite '+payload.limit+' · ')+((performance.now()-start)/1000).toFixed(1)+' s';
     message(results.length || generatedResult?'':'Prueba otra descripción o amplía los filtros.');
     $('results').replaceChildren(...results.map(card));
   } catch(e) {
@@ -180,6 +194,7 @@ document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()
   $('mode').disabled=tab==='generate';
   $('filter').disabled=tab!=='text';
   $('species').disabled=tab==='generate';
+  $('limit').disabled=tab==='generate';
   $('file').accept=tab==='generate'?'image/jpeg,image/png,image/webp':'image/jpeg,image/png,image/webp,audio/flac,audio/wav';
   document.querySelector('label[for="file"]').textContent=tab==='generate'?'Imagen de consulta opcional':'Imagen de referencia o audio breve';
   $('upload-hint').textContent=tab==='generate'?'Opcional: sube una imagen, elige una del corpus o pregunta solo por texto. Hasta 10 MB y 20 MP.':'Hasta 10 MB; audio hasta 30 segundos. La consulta no se guarda ni se indexa.';
@@ -193,8 +208,12 @@ document.querySelectorAll('[data-query]').forEach(b=>b.addEventListener('click',
 $('search-form').addEventListener('submit',async e=> {
   e.preventDefault();
   const common= {
-    limit:8,species:$('species').value,filter:$('filter').value
+    species:$('species').value,filter:$('filter').value
   };
+  if (tab !== 'generate') {
+    common.limit = searchLimit();
+    if (common.limit === null) return;
+  }
   if(tab==='text') {
     await run('/api/search', {
       ...common,query:$('query').value,mode:$('mode').value

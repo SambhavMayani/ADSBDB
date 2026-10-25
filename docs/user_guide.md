@@ -206,6 +206,27 @@ MinIO/S3 Console is at **http://127.0.0.1:9001** with the locally configured cre
 
 The UI is in Spanish. Generated wording and relevance can vary; inspect behavior, sources and trace instead of expecting an exact sentence.
 
+### Number of search results: top-k and `--limit`
+
+For Tasks 1 and 2, **top-k** means the requested maximum number of distinct matching assets. The default is **k = 8**. Windows/chunks belonging to the same file are grouped into one result. Filters, exclusion of the reference asset or a small dataset can leave fewer than k eligible assets; the system returns those available.
+
+In the web interface, set **Cantidad (top-k)** to an integer from **1 to 50**; the initial value is **8**. It applies to text searches, image/audio queries and the cards' related-search buttons. The **Modalidad de resultados** dropdown filters types (images, audio or text) independently. The quantity control is disabled in Task 3 because RAG uses its own evidence budget. From Git Bash, the equivalent is `--limit`:
+
+```bash
+# Task 1: request up to five text assets.
+python -m multimodal_tasks.search --query "Hábitat del lince ibérico" --space text --limit 5
+# Task 2: request up to ten image/text assets in total.
+python -m multimodal_tasks.search --query "Iberian lynx in its natural habitat" --space image_text --limit 10
+# List the CLI options without querying or loading models.
+python -m multimodal_tasks.search --help
+```
+
+These commands assume the query copy, local S3 service and cached embedding models are ready as explained above. Omitting `--limit` requests 8. For Task 1, results have the same modality. For Task 2, the limit is **the total across modalities**, not a separate allowance per type: eight results can include four images and four texts when available. The mixed search reserves modality quotas, so this is a diversified selection rather than a pure global similarity top-k. With k = 1, a mixed result set is impossible. This search parameter does not set the separate Task 3 RAG evidence budget.
+
+To check the UI, search with top-k **1**, then **5**, then **50** and compare the returned count and displayed limit. A small or filtered set may yield fewer assets. Repeat with an image/audio query and a related-search button. Empty, fractional, zero or greater-than-50 values must not submit a search. The selected value is retained when changing tabs in the current page; reloading resets it to 8.
+
+### Cases to try in the interface
+
 | Case | UI action | Expected behavior |
 |---|---|---|
 | Task 1 text | **Explorar por texto**, text mode; `Hábitat del lince ibérico` | Text results with provenance |

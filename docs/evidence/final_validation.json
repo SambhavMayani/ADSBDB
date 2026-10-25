@@ -281,10 +281,11 @@
     "sha256": {
       "docs/ecosentinel_report.pdf": "7e787eb1e74804bc78132089437a1f18a6fa1223ef0b9b95ce1671039b22bf7f",
       "docs/final_report.md": "f3b43cff124a7eac78071abfeafde19f534f827912a2abc4596938677425e893",
-      "docs/user_guide.md": "b98e7fa5924283133b14bdfb18bbc261681ff457a4ef01d2c221c684c07c1401",
-      "README.md": "c1dd7923e46dfc31c03eb592c7ed1f0f5c08360780e8f573d4c99b41eb5a4aa6",
+      "docs/user_guide.md": "da3e3540734c2a7613db870ccb86177f8c4011da0e4d240169d7020718d6f3ca",
+      "README.md": "22a1e6c982e17be41d8f06c67ec2219feb76f0aa4d7333457139ae02fc9d665a",
       "docs/pipeline_orchestration.md": "0556e0a3a10841697e240450737a5df91bd7358618990a449d9ddd1d3e6ad517",
-      "docs/testing_and_validation.md": "fc54a5e23a808cdde0fc051715f1317c155371bc2564eeae80e0c70e57a5c06d"
+      "docs/testing_and_validation.md": "fc54a5e23a808cdde0fc051715f1317c155371bc2564eeae80e0c70e57a5c06d",
+      "docs/multimodal_tasks_documentation.md": "91e7f13d6694ba93f4c6cdb71389836d1b3f9d09ac08777b3333e71a7e099498"
     },
     "local_checks": "reports/validation/report_refresh/documentation_checks.json",
     "clarity_revision_at_utc": "2026-10-24T23:15:56.292384+00:00",
@@ -295,6 +296,49 @@
       "removed_files": 178,
       "reclaimed_bytes": 39035869.0,
       "local_manifest": "reports/validation/report_refresh/cleanup.json"
+    },
+    "top_k_documentation": {
+      "recorded_at_utc": "2026-10-24T23:37:06.190040+00:00",
+      "default_distinct_assets": 8,
+      "cli_limit_range": [
+        1,
+        50
+      ],
+      "web_quantity_selector": true,
+      "scope": "README, user guide, Task 1/2 reference and CLI help document 1-50 distinct assets, default 8; web selector now implemented. RAG evidence budget remains independent.",
+      "checks": [
+        "CLI --help",
+        "Ruff check/format",
+        "local links, Python parsing and secret scan",
+        "git diff --check"
+      ],
+      "source_sha256": "16505c10d5cdc1cf3a7143a0aecb9a98d558e120d2fb94a05caa20762aba7c6c",
+      "updated_at_utc": "2026-10-25T09:22:40.653287+00:00",
+      "ui_validation": {
+        "scope": "Real Edge browser and project HTTP handlers with synthetic service/RAG doubles; no Chroma, S3, model loading or wildlife data.",
+        "checks": [
+          "Default 8 and native integer bounds 1-50",
+          "Text queries transmit 1, 5, 8 and 50; actual cards respect available assets",
+          "Both related-result buttons use selected top-k",
+          "Empty, zero, over-limit and fractional values block forms and related-search requests",
+          "Image upload same/mixed modality transmits selected limits through real HTTP upload validation",
+          "RAG disables top-k and remains independent even after an invalid search value",
+          "Desktop, tablet and mobile layouts have no horizontal overflow",
+          "Reload restores default 8"
+        ],
+        "post_requests": 10,
+        "page_errors": [],
+        "desktop_and_mobile_visually_reviewed": true,
+        "bash_blocks_syntax_checked": 24,
+        "existing_search_web_tests_passed": 38,
+        "recorded_at_utc": "2026-10-25T09:22:40.653287+00:00",
+        "local_report": "reports/validation/top_k_ui.json",
+        "source_sha256": {
+          "webapp/static/index.html": "cc54e27ba49b7b8eb1766960e7f4545e66f2b7f48314752d47caa73db7dda70c",
+          "webapp/static/app.js": "dbf706d6ecb62a8ebf9af3502b997cc0f3eaa19d9df10c181f82040a7c6be019",
+          "webapp/static/style.css": "1282593a533a525571ec44bec84dc77bfc6de7a7ab504a113b7eb62b1acf3e7b"
+        }
+      }
     }
   }
 }

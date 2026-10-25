@@ -333,7 +333,9 @@ def main(argv=None):
     parser.add_argument('--mixed', action='store_true')
     parser.add_argument('--space', default='text', choices=list(DIMENSIONS) + ['multimodal'])
     parser.add_argument('--species')
-    parser.add_argument('--limit', type=int, default=8)
+    parser.add_argument(
+        '--limit', type=int, default=8, help='Maximum distinct assets to return (1-50; default: 8)'
+    )
     parser.add_argument('--status', action='store_true')
     args = parser.parse_args(argv)
     os.environ.setdefault('HF_HUB_OFFLINE', '1')

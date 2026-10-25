@@ -96,6 +96,8 @@ python -m webapp.server
 
 Open **http://127.0.0.1:8765**. Queries use a separate snapshot, `data/search_index/`; the original index is protected. External query files stay in memory. Model preparation, fresh-clone setup and UI examples are in the [user guide](docs/user_guide.md).
 
+Tasks 1 and 2 request up to **8 distinct assets** by default. Set **Cantidad (top-k)** in the web or use `--limit N` in the CLI for **1–50** results in total. **Modalidad de resultados** filters type independently. Task 3 uses its own evidence budget. See the [top-k explanation and examples](docs/user_guide.md#number-of-search-results-top-k-and---limit).
+
 ## Pipeline and recovery
 
 ```bash

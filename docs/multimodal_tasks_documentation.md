@@ -52,7 +52,24 @@ Esta es una **decisión de diversificación**, no la afirmación de que la lista
 
 ## 5. Ejecución desde terminal
 
-Preparar una instantánea como se explica en [Exploitation](exploitation_zone_documentation.md). Desde la raíz y el entorno virtual:
+Preparar una instantánea como se explica en [Exploitation](exploitation_zone_documentation.md). Desde la raíz y el entorno virtual, en Git Bash.
+
+**Cantidad de resultados (top-k):** se solicitan **8 activos distintos por defecto**. `--limit N` permite pedir entre **1 y 50**; es un máximo, no una garantía de encontrar N activos. Los filtros, la exclusión de la referencia y los activos disponibles pueden reducir la cantidad. Los fragmentos de un mismo archivo se agrupan. En Task 2 el límite es el total combinado, no N resultados por modalidad; se aplica la política de diversidad de la sección 4. Con `--limit 1` no se puede mostrar una mezcla.
+
+Ejemplos para cambiar la cantidad:
+
+```bash
+# Task 1: hasta cinco textos
+python -m multimodal_tasks.search --query "Hábitat del lince ibérico" --space text --limit 5
+# Task 2: hasta diez activos en total, imágenes y textos
+python -m multimodal_tasks.search --query "Iberian lynx in its natural habitat" --space image_text --limit 10
+# Todas las opciones; no abre el índice ni carga modelos
+python -m multimodal_tasks.search --help
+```
+
+Omitir `--limit` equivale a `--limit 8`. Este parámetro no cambia el presupuesto independiente de evidencias de Task 3. El valor `60` de la fórmula RRF es una constante de fusión y no el número de resultados solicitados.
+
+Otras formas de consulta:
 
 ```bash
 python -m multimodal_tasks.search --status
@@ -90,6 +107,10 @@ python -m webapp.server
 ```
 
 Abrir `http://127.0.0.1:8765`:
+
+El campo **Cantidad (top-k)** admite enteros de **1 a 50**, con **8** como valor inicial. Se aplica a texto, archivos de imagen/audio y botones «Similares del mismo tipo» / «Relacionar con otros tipos». El resumen muestra la cantidad devuelta y el límite solicitado. Se conserva el valor al cambiar de pestaña; al recargar vuelve a 8. **Modalidad de resultados** filtra el tipo de activo de forma independiente. En Task 3 el campo de cantidad queda desactivado: RAG conserva su presupuesto de fuentes independiente. El equivalente por terminal es `--limit N`.
+
+Validación manual: comparar búsquedas con 1, 5 y 50; repetir desde un archivo y una tarjeta; comprobar que vacío, 0, 51 y valores fraccionarios no envían una consulta. Una búsqueda filtrada puede devolver menos activos que el máximo pedido. Con top-k 1 no se puede exigir mezcla de modalidades.
 
 - **Explorar por texto:** elegir texto a texto para Task 1, un espacio mixto para Task 2 o todas las modalidades para la búsqueda federada.
 - **Buscar similares:** seleccionar imagen o audio; elegir misma modalidad o modalidades combinadas.

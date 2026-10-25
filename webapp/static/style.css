@@ -199,11 +199,11 @@ textarea:focus,select:focus,button:focus-visible,input:focus {
 }
 .filters {
   display:grid;
-  grid-template-columns:1.6fr 1fr 1fr auto;
+  grid-template-columns:1.5fr 1fr 1fr minmax(130px,.8fr) auto;
   gap:16px;
   align-items:end
 }
-select {
+select,input[type=number] {
   width:100%;
   padding:10px;
   background:#fffef9;
@@ -211,6 +211,10 @@ select {
   border-radius:5px;
   color:var(--ink);
   font-size:12px
+}
+input[type=number]:disabled {
+  opacity:.55;
+  cursor:not-allowed
 }
 .submit {
   color:white;
@@ -355,6 +359,11 @@ input[type=file] {
 [hidden] {
   display:none!important
 }
+@media(max-width:1050px) {
+  .filters {
+    grid-template-columns:1fr 1fr
+  }
+}
 @media(max-width:800px) {
   .brand small,.local {
     display:none
@@ -366,9 +375,6 @@ input[type=file] {
   }
   .intro aside {
     min-height:180px
-  }
-  .filters {
-    grid-template-columns:1fr 1fr
   }
   .grid {
     grid-template-columns:1fr 1fr
