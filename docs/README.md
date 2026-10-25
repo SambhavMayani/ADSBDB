@@ -4,7 +4,7 @@ Reference installation: **198 accepted assets and 6,021 embeddings**. Commands u
 
 ## Start here
 
-1. [Project report](ecosentinel_report.pdf): domain, purpose, architecture, justified choices and Tasks 1–3. Eight numbered pages including the cover, plus an unnumbered instructions page. [Editable report source](final_report.md).
+1. [Project report](ecosentinel_report.pdf): domain, purpose, architecture, justified choices and Tasks 1–3. Ten numbered pages including the cover, plus an unnumbered instructions page. Dedicated pages explain Trusted reports/metrics and cosine, HNSW and compatible spaces. [Editable report source](final_report.md).
 2. [User and assessor guide](user_guide.md): installation, fresh-clone setup, interface cases and expected outcomes.
 3. [P1 requirements](p1_requirements.md): mapping from the statement to implementation and evidence.
 4. [Presentation and script](presentation/README.md): English group defence with real examples and speaking notes.

@@ -89,7 +89,7 @@ Our engineering priorities are reproducibility, explicit contracts, incremental 
 
 This report explains the domain, the value of the system, the reasons for each zone and model, the three analytical Tasks and the operations environment. It records observed validation and limitations rather than treating plausible model output as verified identification.
 
-Context and data  2   |   Data management backbone  3–5<br/>Multi-modal Tasks  6–7   |   Operations and validation  8
+Context and data  2   |   Data management backbone  3–6<br/>Similarity methods  7   |   Tasks and interface  8–9<br/>Operations and validation  10
 
 
 ---
@@ -185,6 +185,41 @@ Limitations are explicit: watermark and near-duplicate heuristics have no labell
 ---
 
 
+# Trusted Reports, Metrics and Interpretation
+
+## From per-asset decisions to reviewable reports
+
+Each evaluated asset has audit JSON under trusted-zone/_quality/&lt;modality&gt;/, recording source identity, policy, status/reason, measurements and duplicate/warning information. Generators aggregate the currently stored manifests without decoding media again, changing decisions or running encoders. Their scope includes existing assets, not just new inputs from that run.
+
+| Output | Purpose |
+| --- | --- |
+| quality_report.html | Human-readable quality overview with tables and linked plots. |
+| summary.json | Machine-readable aggregate counts, provenance, flags and modality-specific statistics. |
+| metrics.csv | One flattened row per evaluated asset, for inspection and independent analysis. |
+| PNG figures | Portable histogram and before/after bar-chart images linked from the HTML. |
+
+Output: **reports/trusted_quality/&lt;modality&gt;/&lt;timestamp&gt;/**. Open the HTML with its PNGs alongside it. A compatible rerun creates a new report without republishing identical assets. Runtime reports remain outside Git; selected reference summaries are versioned.
+
+## Measurements are chosen for each modality
+
+| Modality | Recorded measurements and plots | Purpose and interpretation |
+| --- | --- | --- |
+| Image | Megapixels, file MB, brightness (0-255), aspect ratio and Laplacian sharpness; duplicate, monochrome and possible-watermark indicators. | Profile decoding/usability and review signals. Sharpness and watermark heuristics do not establish biological validity. |
+| Audio | Duration (s), RMS/peak (dBFS), clipping (% samples), low-energy (% 50-ms windows), sample rate (Hz), channels and exact-PCM duplicates. | Expose recording variability and clipping/quietness without trimming, denoising or changing accepted audio. |
+| Text | Words, characters, bytes, unique-token ratio (TTR), alphanumeric fraction, duplicate candidates and possible email/IPv4 counts. | Describe document length/structure and review privacy patterns. Counts retain no matched private values; TTR depends on length. |
+
+## Plots show distributions and the effects of the policy
+
+Histograms profile the configured numeric features; bar charts compare evaluated versus accepted counts by species and data source. Audio/text summaries include count, mean, median, minimum, maximum and p10/p90 for available measurements. Image summaries also report retention, provenance coverage, warning counts, measured processing costs and Jensen-Shannon distribution shift in bits.
+
+Before/after bars describe selection, not automatic changes to media. All 100 reference images remain accepted, with species shift of 0.0 bits: matching bars do not imply missing controls. Provenance coverage measures field presence, not truth. The 32 possible-watermark and nine low-energy flags remain warnings rather than automatic rejection.
+
+Generators: trusted_zone/reporting/generate_image_report.py and generate_modality_report.py. Reference evidence: docs/evidence/quality_images.json, quality_audio.json and quality_text.json. Thresholds and reproduction commands: docs/trusted_zone_documentation.md.
+
+
+---
+
+
 # Exploitation Zone and Model Choices
 
 Vectors retain asset/segment IDs, source keys, hashes and policy fingerprints; S3 retains the media. Three single-modality and two shared collections implement retrieval. Equal dimensions never establish compatibility between models.
@@ -221,19 +256,55 @@ Revisions: config/model_manifest.json. Encoder policies: config/exploitation.yam
 ---
 
 
+# Similarity Search and Compatible Spaces
+
+## Cosine measures the proximity of two representations
+
+For non-zero vectors, **cos(q,x) = dot(q,x) / (||q|| * ||x||)**. Our encoders normalise vectors to unit length, so scoring becomes a dot product. Cosine ranges from -1 to 1: higher values mean closer directions in that compatible representation. A value of zero means perpendicular directions. It is neither a species probability nor a universal relevance threshold.
+
+| Candidate x for q=(1,0) | Cosine | Illustrative interpretation |
+| --- | --- | --- |
+| (0.96, 0.28) | 0.96 | Most aligned of these three candidates |
+| (0.60, 0.80) | 0.60 | Less aligned with this query |
+| (0.00, 1.00) | 0.00 | Perpendicular to the query |
+
+The calculation above is two-dimensional for clarity; production vectors have 384 or 512 components. Recorded examples score 0.912 for image-to-image retrieval and 0.332 for a text-to-image candidate. Those query types have different score distributions; these observations do not establish good/bad bands or identification accuracy.
+
+## HNSW finds neighbours among many stored vectors
+
+Chroma is configured with **Hierarchical Navigable Small World** and cosine distance. HNSW is approximate nearest-neighbour search: sparse upper graph layers allow longer hops, then denser lower layers refine candidates. It can miss a true nearest neighbour. We use Chroma's implementation, without claiming a measured speedup or recall on wildlife queries.
+
+For at most **64 eligible vectors after filtering**, our code instead compares every vector exactly, with cost O(N*d). This bounded path handles tiny/new collections without requiring a materialised HNSW disk segment. Larger queries delegate to Chroma and expose cosine as 1 minus distance. The candidate pool grows when necessary to retrieve enough distinct assets.
+
+## Different modalities require aligned encoders
+
+Image/text CLIP and audio/text CLAP can compare different file types within their respective aligned spaces. CLIP and CLAP both have 512 dimensions, but their coordinates are unrelated: a cross-model dot product is mathematically possible and semantically invalid. Different dimensions fail validation. Routing selects compatible encoders/collections and checks model-policy contracts; dimension alone cannot reveal the origin of an arbitrary vector.
+
+Collections are containers, not necessarily different coordinate systems. Compatible visual CLIP vectors can serve both image and image-text collections. Changing the query space resolves the same asset's compatible representation by asset_id; absence produces an explicit error.
+
+## Federation combines positions rather than coordinates
+
+A federated query is embedded separately by E5, CLIP and CLAP. **Reciprocal Rank Fusion** sums 1/(60+rank), once per asset per list. Positions 1 and 3 give 1/61 + 1/63, approximately 0.03227. This is an RRF score, not cosine or confidence. The constant 60 is independent of the requested top-k. Raw vectors and cross-model cosine magnitudes are not combined.
+
+Implementation: multimodal_tasks/search.py, exploitation_zone/encoders.py and vector_store.py. Course: Vector Databases, pp. 31-34 and 87-105. Recorded qualitative scores: docs/presentation/task_examples.json. Detailed limits: docs/multimodal_tasks_documentation.md.
+
+
+---
+
+
 # Multi Modal Tasks and User Interface
 
 ## Task 1 discovers related assets within a modality
 
 A reference image retrieves images; a recording retrieves recordings; a text query uses E5 for texts. Stored-record queries reuse the existing vector and exclude the entire reference asset, including its other segments. An external query is embedded in memory without ingestion. Results are grouped by asset so a long document or recording does not occupy the ranking solely through repeated chunks.
 
-We use cosine similarity within each compatible space. For at most 64 candidates, a bounded exact scan handles small collections; larger sets use Chroma HNSW. Tests cover both paths. The resulting scores indicate geometric similarity, not calibrated species probabilities. Some visually related but taxonomically different animals can rank together.
+The metric, exact/approximate search paths and space-compatibility rules are explained on page 7. Tests exercise both the bounded exact path and a larger real Chroma collection. Visually related but taxonomically different animals can rank together; similarity alone does not verify species identity.
 
 ## Task 2 connects modalities through aligned spaces
 
 The image-text and audio-text collections each contain both modalities. Text can retrieve photographs and descriptions, or recordings and descriptions. Image/audio inputs can also retrieve mixed results. An explicit diversity policy allocates available results across modalities, making the shared information visible instead of allowing numerous text chunks to dominate.
 
-For a federated query, E5, CLIP and CLAP produce separate rankings. Reciprocal Rank Fusion combines asset ranks using a constant of 60. We chose rank fusion because cosine magnitudes from unrelated encoders are not comparable. Fusion and modality quotas change the ranking objective: the output is a useful mixed view, not a pure global cosine top-k. Its value should eventually be assessed with relevance labels.
+Federated search uses the RRF method described on page 7. Fusion and modality quotas change the ranking objective: the output is a useful mixed view, not a pure global cosine top-k. Its value should eventually be assessed with relevance labels. A filtered or very small result set may contain only one modality.
 
 ## One local interface exposes the complete workflow
 
@@ -244,6 +315,8 @@ For a federated query, E5, CLIP and CLAP produce separate rankings. Reciprocal R
 | Preguntar al corpus · RAG | Ask about the dataset, optionally with an uploaded or stored image; inspect cited claims and diagnostics. |
 
 Result cards expose source lineage and related-asset actions. RAG shows candidate species as hypotheses, links claims to reference excerpts, and distinguishes complete answers, partial answers, abstention and technical errors. The user can inspect the model revision, request ID and runtime without needing a terminal.
+
+The interface's quantity selector requests 1-50 distinct assets, with default 8; CLI users set --limit N. This is a maximum across the result set. RAG keeps its independent evidence budget.
 
 The web server binds to loopback, validates host/origin and upload limits, and serialises CPU work. The static frontend requires no build toolchain. This reduces setup complexity for assessment, but provides no public authentication, multiuser capacity or deployment-grade isolation. A hosted service would need a separate architecture and operational controls.
 

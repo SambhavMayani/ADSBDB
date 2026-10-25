@@ -254,7 +254,8 @@
     },
     "editable_chart_count": 2,
     "chart_data_workbooks_verified": true,
-    "chart_data_source": "docs/presentation/quality_charts.json"
+    "chart_data_source": "docs/presentation/quality_charts.json",
+    "superseded_by": "presentation_algorithms_review"
   },
   "documentation_review": {
     "recorded_at_utc": "2026-10-24T23:04:28.336207+00:00",
@@ -340,5 +341,214 @@
         }
       }
     }
+  },
+  "presentation_revision_review": {
+    "recorded_at_utc": "2026-10-25T18:27:10.489202+00:00",
+    "scope": "Presentation/documentation only; no data acquisition, model inference, pipeline, S3 or Chroma clients.",
+    "slides": 22,
+    "target_seconds": 805,
+    "speech_words": 1566,
+    "script_pages": 23,
+    "all_slides_and_script_pages_visually_reviewed": true,
+    "package_integrity": "pass",
+    "layout_and_font_policy": "pass",
+    "first_party_import": "pass",
+    "native_powerpoint_rendering_verified": false,
+    "editable_chart_count": 2,
+    "native_table_slides": [
+      5,
+      7,
+      8,
+      14,
+      20
+    ],
+    "original_chart_and_workbook_parts_preserved_byte_for_byte": true,
+    "chart_source": "docs/presentation/quality_charts.json",
+    "retrieval_source": "docs/presentation/task_examples.json",
+    "checked": [
+      "Speech matches PPTX notes and script PDF on every slide",
+      "All script text within page boundaries",
+      "Illustrative unit-vector cosine arithmetic",
+      "Recorded scores rounded from existing Task 1/2 evidence",
+      "Compatible-space cosine separated from cross-model rank fusion"
+    ],
+    "reference_presentation_sha256": "f300ee5d595ee8a0e72e5482869c69cacca53830c3d138d20c2e8ec60623417b",
+    "sha256": {
+      "docs/presentation/EcoSentinel_presentation.pptx": "ae639247547a1894db957b31a7fa901d4192d22a58f82d0899d6e7c75a6f168d",
+      "docs/presentation/EcoSentinel_presentation.pdf": "05baa10ad5c2409251fcb1d933eb6088f12db92f775301cdff589487b7e461f0",
+      "docs/presentation/speaker_script.pdf": "5f3f2112a4dc7a78cc2443b1b0ae9abe94df63cd51b58507d51266d2f518a44a",
+      "docs/presentation/speaker_script.md": "f02b25c9a6b210b9d049d5726ae8a02ab6fdf9ebe3795889934456935e28046a",
+      "docs/presentation/pipeline_overview.png": "d01a608f334e534b63534f9f36c56490e2859fba4bacaa4417ea94b775d3a35b"
+    },
+    "local_checks": "reports/validation/presentation_revision/validation_cosine.json"
+  },
+  "presentation_algorithms_review": {
+    "recorded_at_utc": "2026-10-25T21:04:33.534493+00:00",
+    "scope": "Presentation/documentation only; no data acquisition, model inference, pipeline, S3 or Chroma clients.",
+    "slides": 24,
+    "target_seconds": 900,
+    "speech_words": 1763,
+    "script_pages": 25,
+    "all_slides_and_script_pages_visually_reviewed": true,
+    "package_integrity": "pass",
+    "layout_and_font_policy": "pass",
+    "first_party_import": "pass",
+    "native_powerpoint_rendering_verified": false,
+    "editable_chart_count": 2,
+    "native_table_slides": [
+      5,
+      7,
+      8,
+      9,
+      15,
+      22
+    ],
+    "original_chart_and_workbook_parts_preserved_byte_for_byte": true,
+    "chart_source": "docs/presentation/quality_charts.json",
+    "retrieval_source": "docs/presentation/task_examples.json",
+    "lecture_source": {
+      "file": "5 - Vector Databases.pdf",
+      "pages": [
+        31,
+        32,
+        33,
+        34,
+        87,
+        105
+      ],
+      "sha256": "a2b54dd3115ce1e85c3f129ca093da1ab3cb86ed1ed88e8f28bc9a304640d4b6"
+    },
+    "illustrative_photo_cases": {
+      "A": {
+        "path": "photo-A.jpeg",
+        "source_part": "ppt/media/image4.jpeg",
+        "sha256": "de7879dccfd8e4abfa0236aa0c0c7377a77585387e00dfbb500358e1bdd3a5d9"
+      },
+      "B": {
+        "path": "photo-B.jpeg",
+        "source_part": "ppt/media/image5.jpeg",
+        "sha256": "3e983a74713d0049c4e04364eafbfe701a5dd326c325ad0e8622a0c7dbb45700"
+      }
+    },
+    "checked": [
+      "Speech matches PPTX notes and script PDF on every slide",
+      "All script text within page boundaries",
+      "Illustrative unit-vector cosine arithmetic",
+      "Recorded scores rounded from existing Task 1/2 evidence",
+      "Compatible-space cosine separated from cross-model rank fusion",
+      "Four name/content cases checked against the isolated actual key-builder function",
+      "All 22 prior slide speeches preserved; pipeline graphic byte-identical",
+      "HNSW configuration and exact <=64-vector path cross-checked with code and lecture"
+    ],
+    "reference_presentation_sha256": "ae639247547a1894db957b31a7fa901d4192d22a58f82d0899d6e7c75a6f168d",
+    "sha256": {
+      "docs/presentation/EcoSentinel_presentation.pptx": "4966a494a41764ad7e5767fb3ff387dad24ad06e4b9fd51ecbd0815ee930c186",
+      "docs/presentation/EcoSentinel_presentation.pdf": "e2cc55bf41e0ea83135174ecb5732671c6cf8f1cf979b5aeeca097e2e5fbf9e5",
+      "docs/presentation/speaker_script.pdf": "b6d05f1e4a238de8f0c466ebe6f23e5f13962751d93e107075ea5cd9896e6b0c",
+      "docs/presentation/speaker_script.md": "61a971fd386b8f2f5dda86f466a173aebc6c7160cb1f1059a2d0500f926485cd",
+      "docs/presentation/pipeline_overview.png": "d01a608f334e534b63534f9f36c56490e2859fba4bacaa4417ea94b775d3a35b"
+    },
+    "local_checks": "reports/validation/presentation_algorithms/validation_algorithms_v4.json"
+  },
+  "similarity_documentation_review": {
+    "recorded_at_utc": "2026-10-25T21:19:46.680907+00:00",
+    "scope": "Documentation only; pure-vector checks without model/storage clients. No pipeline, acquisition, model inference, S3 or Chroma operations.",
+    "physical_pages": 9,
+    "unnumbered_instructions_pages": 1,
+    "numbered_report_pages_including_cover": 8,
+    "changed_physical_page": 7,
+    "changed_report_page": 6,
+    "changed_page_visually_reviewed": true,
+    "unchanged_pages_render_identical": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      8,
+      9
+    ],
+    "all_page_text_within_bounds": true,
+    "checked_topics": [
+      "Cosine formula, unit-vector arithmetic and score interpretation",
+      "HNSW ANN versus exact scan for at most 64 eligible vectors",
+      "Aligned cross-modal spaces and incompatible CLIP/CLAP coordinates",
+      "Dimension failure versus inability to infer model origin from equal dimensions",
+      "Compatible representation routing by asset and per-model rank fusion"
+    ],
+    "pure_function_checks": {
+      "illustrative_cosines": [
+        0.9599999785423279,
+        0.6000000238418579,
+        0.0
+      ],
+      "invalid_vectors_rejected": 3,
+      "rrf_example": 0.032266458495966696
+    },
+    "sha256": {
+      "docs/ecosentinel_report.pdf": "8fa61a5bc9d6fbf98bc858397abf0870587ff5b3f31a8a1ba1d0572d83ace5d7",
+      "docs/final_report.md": "6aaa0586ed1e0c9ff846df280f59340c6794fcd8c3e713a9ff4ebf5ab75b5a9d",
+      "docs/multimodal_tasks_documentation.md": "3d61087e33dfaaadc83a89ebf99910a5ac0acfaed39218480daffd23c5000156",
+      "docs/exploitation_zone_documentation.md": "29edf9435612ffb4824923c0b4c180e44bd6dfc0a7902f49034aad473b096bbd"
+    },
+    "local_evidence": "reports/validation/report_similarity/",
+    "superseded_by": "report_expansion_review"
+  },
+  "report_expansion_review": {
+    "recorded_at_utc": "2026-10-25T21:25:17.273012+00:00",
+    "scope": "Report/documentation only; no application edits, pipeline, models, acquisition, S3 or Chroma clients.",
+    "length_basis": "User relayed professor clarification allowing expansion up to ten report pages when substantive; nine numbered pages used, plus separate instructions.",
+    "physical_pages": 10,
+    "unnumbered_instructions_pages": 1,
+    "numbered_report_pages_including_cover": 9,
+    "all_pages_visually_reviewed": true,
+    "all_page_text_within_bounds": true,
+    "body_font_size_unchanged_pt": 10.3,
+    "content_checks": [
+      "Standalone methods page with formula, toy scores and recorded examples",
+      "HNSW/exact algorithm boundary, aligned spaces, invalid cross-model comparison and RRF",
+      "Tasks/interface explanation restored and expanded with explicit top-k controls",
+      "Instruction, domain, zone, RAG and validation section content preserved exactly",
+      "Cover contents and all report page numbers updated"
+    ],
+    "sha256": {
+      "docs/ecosentinel_report.pdf": "67f28555591e56a4646b7ff87fe1d7f20d044c38601646c9d913b3bd0d699ff3",
+      "docs/final_report.md": "16c1ed55476004557a47ced7f48468858d0951c9734669df48d20c8722311e91",
+      "docs/p1_requirements.md": "1a98ccf863d4acfc06591b48d2e1d1f6ee31d27ed8004a9e1f1c0986fc76b764",
+      "docs/README.md": "7b0a6d5d5f5f8c6dc98a21421b26ad43b45dd72bbab7084e088bbda7a2ac2492"
+    },
+    "local_evidence": "reports/validation/report_expanded/",
+    "superseded_by": "report_trusted_review"
+  },
+  "report_trusted_review": {
+    "recorded_at_utc": "2026-10-25T21:33:55.469080+00:00",
+    "scope": "Final report/documentation only; no pipeline, model inference, S3 or Chroma operations.",
+    "physical_pages": 11,
+    "unnumbered_instructions_pages": 1,
+    "numbered_report_pages_including_cover": 10,
+    "all_pages_visually_reviewed": true,
+    "all_page_text_within_bounds": true,
+    "body_font_size_unchanged_pt": 10.3,
+    "added_report_page": 5,
+    "checks": [
+      "HTML, aggregate JSON, per-asset CSV and linked PNG roles explicitly documented",
+      "Per-modality measurements and configured histogram/bar-chart purposes checked against generators",
+      "Audio/text descriptive statistics distinguished from image aggregates and JSD",
+      "Current-manifest scope, dated reports, output path and rerun behavior explained",
+      "Reference observations distinguished from biological correctness and automatic rejection",
+      "All previous section bodies retained; only cover contents and page references updated"
+    ],
+    "sha256": {
+      "docs/ecosentinel_report.pdf": "f8b969a933e81fb861f92e939b893888c03174ae828e9b027a7722a04216fa40",
+      "docs/final_report.md": "0dcd348ca503f01fc2215adc0d2d3541ababfd0669071af83f1c50e307c99606",
+      "docs/p1_requirements.md": "19e79285a2f5a9684139db3fe6d4c3fc50c9b056fcb4bab22f9a97d1711763f7",
+      "docs/README.md": "476bebf806aa1aa9ab40912a272b7244c46fa7063cf5f5d552ec02d2d758cf94"
+    },
+    "generator_sources_sha256": {
+      "trusted_zone/reporting/generate_image_report.py": "0eabb2e7e86c97883162d696c096e2a49179c607ce22e6b8dd9f5efcb36d89ae",
+      "trusted_zone/reporting/generate_modality_report.py": "273af97157e3af2db6e245325572dd140008601d67806f48d7ab77a7b77a3531"
+    },
+    "local_evidence": "reports/validation/report_trusted/"
   }
 }

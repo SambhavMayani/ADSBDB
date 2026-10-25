@@ -26,13 +26,49 @@ Task 2 requiere demostrar una **mezcla de formatos recuperados**. Una consulta d
 
 Las referencias del propio índice reutilizan su vector persistido. Se excluye **todo el activo de referencia**, no solo el fragmento usado, para evitar que otro fragmento del mismo documento aparezca como supuesto descubrimiento.
 
-Con hasta 64 candidatos se leen los vectores y se calcula coseno exacto en memoria; por encima se usa HNSW mediante `query_embeddings`. La lectura exacta está acotada y evita depender de un segmento HNSW aún sin materializar para colecciones muy pequeñas. No se captura ni oculta un error de almacenamiento, ni se reconstruye el índice. Hay pruebas independientes de ambas rutas.
+Con hasta 64 vectores elegibles después de los filtros se leen los vectores y se calcula coseno exacto en memoria; por encima se usa HNSW mediante `query_embeddings`. La lectura exacta está acotada y evita depender de un segmento HNSW aún sin materializar para colecciones muy pequeñas. No se captura ni oculta un error de almacenamiento, ni se reconstruye el índice. Hay pruebas independientes de ambas rutas.
 
 Las consultas externas de imagen/audio se procesan en memoria y no se incorporan al índice. El audio de consulta admite hasta 30 segundos y ocho canales; la web limita archivos a 10 MB e imágenes a 20 MP. Los originales de MinIO permanecen intactos.
 
 ## 3. Qué significa «ranking»
 
 Es la lista ordenada de resultados más parecidos a una consulta. En una sola colección se usa similitud coseno (`1 − distancia`). No es una probabilidad, una certeza de especie ni una nota de calidad del archivo.
+
+### Medir dos vectores y buscar vecinos son operaciones distintas
+
+La **similitud coseno** de dos vectores no nulos se calcula como:
+
+```text
+cos(q, x) = producto_escalar(q, x) / (norma(q) * norma(x))
+```
+
+Los encoders normalizan los vectores a longitud uno; por eso basta su producto escalar. Ejemplo ilustrativo de dos dimensiones: para `q=(1,0)`, los candidatos `(0.96,0.28)`, `(0.60,0.80)` y `(0,1)` dan `0.96`, `0.60` y `0.00`. El primero está más alineado con la consulta; cero significa direcciones perpendiculares. En general el coseno está entre -1 y 1. En producción usamos 384 o 512 dimensiones y validamos dimensión, valores finitos y norma no nula.
+
+**Una puntuación mayor indica más cercanía dentro del espacio compatible; no hay un umbral universal de relevancia.** Tampoco significa `0.96 = 96%` de certeza. La modalidad y el modelo afectan a la distribución de puntuaciones. En los [ejemplos registrados](presentation/task_examples.json), el primer resultado de imagen → imagen obtiene `0.912`; la imagen mostrada en texto → imagen obtiene `0.332`. Son observaciones cualitativas de consultas distintas, no bandas de calidad ni un benchmark.
+
+**HNSW (Hierarchical Navigable Small World)** es el algoritmo de búsqueda configurado en Chroma, con distancia coseno. Organiza vecinos en un grafo por capas: las superiores tienen menos nodos y permiten saltos largos; las inferiores refinan la búsqueda. Es ANN, búsqueda aproximada de vecinos próximos: puede omitir un vecino real. EcoSentinel configura y consulta la implementación de Chroma; no implementa HNSW desde cero. No se afirma una aceleración o un recall medidos para nuestro dataset.
+
+La ruta exacta para hasta 64 vectores compara todos los elegibles. La otra ruta delega la búsqueda en Chroma y convierte su distancia en puntuación mediante `1 - distancia`. El tamaño de la lista de candidatos puede crecer para reunir suficientes **activos distintos**, dado que un archivo puede tener varios fragmentos. El límite de 64 se refiere a vectores elegibles, no a archivos, al top-k solicitado ni a la dimensión.
+
+Fuentes del comportamiento: `exploitation_zone/vector_store.py`, `exploitation_zone/encoders.py` y `multimodal_tasks/search.py`. Correspondencia con las clases: *5 - Vector Databases.pdf*, páginas 31–34 para el recorrido exhaustivo/ANN y 87–105 para HNSW. No utilizamos PQ, IVF o LSH para estas consultas; SHA-256 en Landing cumple otra función.
+
+### Qué ocurre al comparar espacios distintos
+
+| Vectores | Interpretación y comportamiento |
+|---|---|
+| Imagen y texto mediante los encoders CLIP alineados | Comparación válida dentro de su espacio compartido; los tipos de archivo pueden ser distintos. |
+| Audio y texto mediante CLAP | Comparación válida dentro del espacio compartido de CLAP. |
+| CLIP 512 y CLAP 512 | El producto escalar es calculable, pero la cercanía resultante no tiene una interpretación semántica válida entre esos modelos. Igual dimensión no implica alineación. |
+| E5 384 frente a una colección de dimensión 512 | La validación rechaza la dimensión incompatible antes de consultar. |
+| Colección con contrato de modelo/política incompatible | La búsqueda falla con un error de contrato; no mezcla modelos ni reconstruye la colección. |
+
+Las rutas públicas eligen el encoder y la colección según la consulta. Al cambiar de espacio con una referencia almacenada, se recupera su representación compatible por `asset_id`; no se traslada ciegamente el vector de una colección a otra. Si no existe esa representación, la consulta falla explícitamente.
+
+Un vector numérico no lleva incorporado el nombre del modelo que lo generó. **La comprobación de dimensión por sí sola no detectaría que alguien pasase manualmente un vector CLAP de 512 componentes a la función interna de búsqueda CLIP.** Es el enrutamiento, junto con los contratos y la procedencia de las representaciones, lo que mantiene la compatibilidad en los flujos admitidos. No se ofrece una API pública para comparar dos vectores arbitrarios.
+
+Una colección es un contenedor; no define por sí sola un sistema de coordenadas diferente. Por ejemplo, el vector visual CLIP puede reutilizarse entre `images` e `image_text` cuando encoder, pesos y preparación son compatibles. Las representaciones CLIP y CLAP siguen siendo incompatibles aunque ambas tengan 512 dimensiones.
+
+### Combinar resultados de modelos distintos
 
 Cuando se consultan modelos distintos, sus distancias no son directamente comparables. Para combinar las listas se utiliza **Reciprocal Rank Fusion**, con `k = 60`:
 
@@ -41,6 +77,8 @@ puntuación de un activo = suma de 1 / (60 + posición en cada lista)
 ```
 
 Solo se suma una contribución por activo y lista. Una posición alta en varias búsquedas puede elevar el resultado combinado. Se etiqueta la puntuación como `rrf`; no se presenta como coseno ni como porcentaje de acierto.
+
+La consulta federada se codifica por separado con E5, CLIP y CLAP. Un activo en posiciones 1 y 3 de dos listas recibe `1/61 + 1/63`, aproximadamente `0.03227`. Se combinan posiciones; no se suman embeddings ni se comparan directamente los cosenos de modelos distintos. La constante 60 es independiente del top-k solicitado.
 
 ## 4. Diversidad de modalidades
 
