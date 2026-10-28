@@ -188,6 +188,12 @@ class SearchService:
     def text(self, query, *, mode='multimodal', limit=8, species=None, modality=None):
         if not isinstance(query, str) or not query.strip() or len(query) > 2000:
             raise ValueError('Enter a query of 1–2000 characters')
+        from multimodal_tasks.query_preparation import prepare_query_text
+
+        # Same canonical text contract as the indexed corpus (Formatted/Trusted).
+        query = prepare_query_text(query)
+        if not query:
+            raise ValueError('Enter a query of 1–2000 characters')
         if mode not in ('text', 'image_text', 'audio_text', 'multimodal'):
             raise ValueError('Invalid search mode')
         spaces = ('text', 'image_text', 'audio_text') if mode == 'multimodal' else (mode,)
@@ -288,37 +294,67 @@ class SearchService:
 
     def media(self, data, modality, *, mixed=False, limit=8, species=None):
         """External image/audio query; bytes live in memory, never indexed."""
+        return self.media_with_report(data, modality, mixed=mixed, limit=limit, species=species)[0]
+
+    def media_with_report(self, data, modality, *, mixed=False, limit=8, species=None):
+        """Prepare an external query like the corpus, search, and return its warnings.
+
+        `data` holds raw upload bytes or a PreparedQuery produced once by
+        multimodal_tasks.query_preparation; prepared bytes are never re-encoded.
+        Nothing is stored: the report only travels back with the response.
+        """
+        from multimodal_tasks.query_preparation import (
+            PreparedQuery,
+            prepare_query_audio,
+            prepare_query_image,
+        )
+
+        if modality not in ('images', 'audio'):
+            raise ValueError('Media query must be images or audio')
         with self.lock:
             try:
                 self.encoders.release_all()
-                if modality == 'images':
-                    space = 'image_text' if mixed else 'images'
-                    return self.query_space(
-                        self.encoders.clip_image(data), space, limit=limit, species=species
-                    )
-                if modality == 'audio':
+                if isinstance(data, PreparedQuery):
+                    if data.modality != modality:
+                        raise ValueError('Prepared query does not match the requested modality')
+                    prepared = data
+                elif modality == 'images':
+                    prepared = prepare_query_image(data)
+                else:
                     import soundfile as sf
                     from io import BytesIO
 
-                    info = sf.info(BytesIO(data))
+                    try:
+                        info = sf.info(BytesIO(data))
+                    except RuntimeError as exc:  # libsndfile cannot read this container
+                        raise ValueError('Unsupported or invalid audio file') from exc
                     if info.duration > 30 or info.channels > 8:
                         raise ValueError('Query audio is limited to 30 seconds / 8 channels')
-                    signal, rate = decode_audio(data)
-                    if len(signal) / rate > 30:
-                        raise ValueError('Query audio is limited to 30 seconds')
-                    mono = prepare_audio(signal, rate, 48000)
-                    space = 'audio_text' if mixed else 'audio'
-                    rankings = [
-                        self.query_space(
-                            self.encoders.clap_audio(part.signal),
-                            space,
-                            limit=limit,
-                            species=species,
-                        )
-                        for part in split_audio(mono, 48000, 10)
-                    ]
-                    return fuse_rankings(rankings)[:limit]
-                raise ValueError('Media query must be images or audio')
+                    prepared = prepare_query_audio(data)
+                if modality == 'images':
+                    space = 'image_text' if mixed else 'images'
+                    rows = self.query_space(
+                        self.encoders.clip_image(prepared.data),
+                        space,
+                        limit=limit,
+                        species=species,
+                    )
+                    return rows, prepared.report
+                signal, rate = decode_audio(prepared.data)
+                if len(signal) / rate > 30:
+                    raise ValueError('Query audio is limited to 30 seconds')
+                mono = prepare_audio(signal, rate, 48000)
+                space = 'audio_text' if mixed else 'audio'
+                rankings = [
+                    self.query_space(
+                        self.encoders.clap_audio(part.signal),
+                        space,
+                        limit=limit,
+                        species=species,
+                    )
+                    for part in split_audio(mono, 48000, 10)
+                ]
+                return fuse_rankings(rankings)[:limit], prepared.report
             finally:
                 self.encoders.release_all()
 

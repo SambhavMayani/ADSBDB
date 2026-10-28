@@ -1,5 +1,12 @@
 'use strict';
 const $=id=>document.getElementById(id);
+// Query formats follow the Formatted Zone; audio is limited to in-memory decoders.
+const IMAGE_ACCEPT='.jpg,.jpeg,.mpo,.png,.webp,.bmp,.gif,.tif,.tiff,image/jpeg,image/png,image/webp,image/bmp,image/gif,image/tiff';
+const AUDIO_ACCEPT='.wav,.wave,.flac,.ogg,.oga,.opus,.aif,.aiff,.aifc,.caf,.mp3,audio/wav,audio/flac,audio/ogg,audio/aiff,audio/mpeg';
+const AUDIO_NAME=/\.(wav|wave|flac|ogg|oga|opus|aif|aiff|aifc|caf|mp3)$/i;
+function queryWarnings(report) {
+  return report && report.warnings && report.warnings.length ? 'Aviso sobre la consulta: '+report.warnings.join(' ') : '';
+}
 let tab='text',busy=false;
 const names= {
   images:'Imagen',audio:'Audio',text:'Texto'
@@ -46,6 +53,7 @@ function renderRag(result) {
     area.append(element('p', 'Sin respuesta respaldada para: ' + result.missing_aspects.map(aspect => labels[aspect] || aspect).join(', '), 'hint'));
   }
   if (result.caption) area.append(element('p', 'Observación automática (BLIP): ' + result.caption, 'hint'));
+  if (queryWarnings(result.query_preparation)) area.append(element('p', queryWarnings(result.query_preparation), 'hint'));
   area.append(element('p', result.limitations, 'hint'));
   const trace = element('details');
   trace.append(element('summary', 'Cómo se ha construido esta respuesta'),
@@ -53,6 +61,8 @@ function renderRag(result) {
     element('p', 'Estado: ' + result.reason + ' · fuentes: ' + result.references.length),
     element('p', 'Consulta: ' + result.request_id),
     element('p', 'Las citas existen en las fuentes; esto no prueba por sí solo la interpretación del modelo.'));
+  if (result.query_preparation) trace.append(element('p', 'Imagen de consulta preparada en memoria: ' +
+    result.query_preparation.source_format + ' → ' + result.query_preparation.canonical_format + ' · no se guarda ni se indexa.'));
   if (result.retrieval) trace.append(element('p', 'Contexto del generador: ' + result.retrieval.evidence_units +
     ' unidades · ' + result.retrieval.evidence_chars + ' caracteres de evidencia.'));
   if (result.generation) trace.append(element('p', 'Generación: ' + result.generation.input_tokens +
@@ -152,10 +162,13 @@ async function run(path,payload) {
   const start=performance.now();
   try {
     let {
-      results
+      results,
+      query_preparation
     }
     =await api(path,payload);
     const generatedResult = !Array.isArray(results);
+    // Non-blocking quality warnings from the in-memory query preparation.
+    const warning=queryWarnings(generatedResult?results.query_preparation:query_preparation);
     if(generatedResult) {
       const g=$('generation');
       if (results.task === 'retrieval_augmented_generation') renderRag(results);
@@ -165,7 +178,7 @@ async function run(path,payload) {
     }
     $('result-title').textContent=generatedResult?'Fuentes recuperadas del corpus.':results.length?'Señales conectadas.':'Sin coincidencias para estos filtros.';
     $('result-meta').textContent=results.length+(generatedResult?' referencias · ':' activos · límite '+payload.limit+' · ')+((performance.now()-start)/1000).toFixed(1)+' s';
-    message(results.length || generatedResult?'':'Prueba otra descripción o amplía los filtros.');
+    message(warning || (results.length || generatedResult?'':'Prueba otra descripción o amplía los filtros.'));
     $('results').replaceChildren(...results.map(card));
   } catch(e) {
     message(e.message,true);
@@ -195,7 +208,7 @@ document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()
   $('filter').disabled=tab!=='text';
   $('species').disabled=tab==='generate';
   $('limit').disabled=tab==='generate';
-  $('file').accept=tab==='generate'?'image/jpeg,image/png,image/webp':'image/jpeg,image/png,image/webp,audio/flac,audio/wav';
+  $('file').accept=tab==='generate'?IMAGE_ACCEPT:IMAGE_ACCEPT+','+AUDIO_ACCEPT;
   document.querySelector('label[for="file"]').textContent=tab==='generate'?'Imagen de consulta opcional':'Imagen de referencia o audio breve';
   $('upload-hint').textContent=tab==='generate'?'Opcional: sube una imagen, elige una del corpus o pregunta solo por texto. Hasta 10 MB y 20 MP.':'Hasta 10 MB; audio hasta 30 segundos. La consulta no se guarda ni se indexa.';
   $('submit').textContent=tab==='generate'?'Responder con fuentes ↗':'Explorar ↗';
@@ -250,7 +263,7 @@ $('search-form').addEventListener('submit',async e=> {
     r.readAsDataURL(f);
   });
   await run('/api/upload', {
-    ...common,data,modality:f.type.startsWith('audio/')||/\.(flac|wav)$/i.test(f.name)?'audio':'images',mixed:$('mode').value==='mixed'
+    ...common,data,modality:f.type.startsWith('audio/')||AUDIO_NAME.test(f.name)?'audio':'images',mixed:$('mode').value==='mixed'
   });
 });
 $('rag-source').addEventListener('change', () => { if ($('rag-source').value) $('file').value = ''; });

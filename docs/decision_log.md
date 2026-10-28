@@ -1,6 +1,6 @@
 # EcoSentinel architecture decisions
 
-Current design, reviewed 24 October 2026. Detailed formats and commands belong in the zone guides. This register explains current choices and costs; Git preserves the earlier decision history.
+Current design, reviewed 24 October 2026; query-input decisions added 28 October 2026. Detailed formats and commands belong in the zone guides. This register explains current choices and costs; Git preserves the earlier decision history.
 
 | Decision | Rationale | Cost or boundary |
 |---|---|---|
@@ -21,9 +21,29 @@ Current design, reviewed 24 October 2026. Detailed formats and commands belong i
 | Independent query snapshot | Chroma already persists vectors on disk. We additionally copy/hash-verify the database for queries to protect the audited original from client migrations/internal writes. This is a project preservation policy, not a persistence requirement. | Extra database disk space; stop writers and refresh to a new directory after data changes. Source media are not copied and embeddings are not recomputed. Coordinated single-index access is an alternative. |
 | Asset grouping, diversity quotas, RRF | Avoid long-file dominance, expose modalities and combine rankings without mixing cosine scales. | Quotas alter raw order; similarity and RRF are not species probabilities. |
 | Local Qwen 2.5 3B Q4_K_M RAG with E5/CLIP and optional BLIP | Generate from bounded retrieved text, fixed revision/hash, on CPU. | Qwen receives text rather than pixels; captioning, retrieval and interpretation can fail. |
+| Vocabulary domain gate before RAG retrieval | Stop clearly unrelated requests (pizza, cars) before retrieval and the CPU-expensive generator; a word list is deterministic, inspectable and needs no extra model or uncalibrated similarity threshold. Plurals and common BLIP words are accepted since 28 October 2026 ("dogs" was rejected). | Not a calibrated out-of-distribution detector: false rejections surface as explicit abstention; it depends on BLIP's caption. |
 | Restricted evidence IDs and post-generation validation | Resolve literal quotations server-side and distinguish answer, partial answer, abstention and error. | Literal quotations do not prove semantic entailment or species identity. |
 | Sequential orchestration, locks, timeouts, atomic reports | Make failures observable and retries safe at each boundary. | Recovery verifies state across stores; there is no global all-or-nothing transaction. |
 | One requirements file and layered CI | One dependency contract; offline Windows/Linux checks and separate storage integration. | Native acceptance needs cached weights/RAM outside ordinary CI; verify the submitted commit remotely. |
+| External queries prepared like the corpus, in memory | Reuse the Formatted conversions and Trusted measurements so query and stored vectors are comparable; never store the query. See the section below. | Tasks import zone functions; warnings are heuristics. |
+
+## Query inputs: same processing, without the zones
+
+**Context.** An uploaded image or recording, or a typed query, previously went straight to the encoder. The indexed corpus, however, had passed through Formatted and Trusted. We asked the supervisor whether query inputs should pass through the pipeline. His answer, summarised: the processing applied to stored data should, as a general convention, also be applied to query data so that the similarity comparison is fair (for example, the same image as PNG or JPEG can produce different embeddings); this does not require passing through the zones or storing anything, and a separate pipeline reusing the needed code is appropriate; processes that could alter what the user asks may be skipped when the choice is justified.
+
+| Decision | Rationale | Cost or boundary |
+|---|---|---|
+| One in-memory query pipeline, `multimodal_tasks/query_preparation.py`, used by Tasks 1, 2 and 3 | It imports the zone functions instead of copying them, so corpus and query processing cannot drift apart. One entry point prevents a Task from skipping a step. | Tasks depend on Formatted/Trusted functions, in the same direction as Exploitation already depends on upstream contracts. Moving them to a shared package would be cleaner but would refactor the validated pipeline. |
+| Do not run the zone scripts, MinIO or the index for queries | Zones build the repository; a query is ephemeral. Storing it would mix unverified user input with the corpus and could later return the query as its own result. | Only a SHA-256 of the input travels back in the response (and in the RAG trace) for traceability. |
+| Apply the Formatted conversions exactly | Images: `convert_to_jpeg` (RGB, white beneath transparency, JPEG quality 95, first frame). Audio: `convert_audio` to FLAC PCM16, keeping rate and channels. Text: `to_canonical_text` (UTF-8, NFC, LF, no control characters), then stripped like indexed chunks. | For an ordinary JPEG the vector barely changes; the effect is visible with transparent PNG/WebP and 24-bit or float audio. JPEG remains lossy, as in the corpus. |
+| Reuse Trusted measurements as non-blocking warnings | `analyze`/`image_rejection` and `audio_metrics` use the Trusted YAML thresholds. Blur, darkness, little colour, unusual aspect, small size, very short, quiet, silent, clipped or DC-offset audio produce a warning; nothing is removed or blocked. Corpus rejections (under 128 px, under 0.01 s) also become warnings. A poor query can still contain what the user wants: poor query, possibly poorer results, but the user decides. | Heuristic signals, not calibrated quality scores. Text warnings (short document, PII patterns) are not meaningful for a question and are not applied. |
+| Do not reuse the watermark heuristic for queries | It flags 32 % of the corpus with many false positives, and an overlay does not prevent retrieval. | A real watermark in a query is not reported. |
+| Show warnings in the interface and response, not in Qwen's prompt | The JSON grammar only allows `answerable` and cited claims, so a note could never appear in the answer; it could only push Qwen towards abstention, which would be over-protection. The RAG result and its trace show the warning instead. | The generated sentences do not mention image quality. |
+| Reuse a stored Trusted image byte for byte | It is already the canonical JPEG that was indexed; re-encoding would move it away from its own vector. | Applies to RAG images selected from the corpus. |
+| Accept the formats of the Formatted Zone | Images: JPEG, PNG, WebP, MPO, BMP, GIF and TIFF, in the interface and the server. Audio: only formats the Formatted converter decodes in memory through libsndfile (WAV, FLAC, OGG/Opus, AIFF, CAF and MP3 when the library supports it), because its ffmpeg path needs temporary files and queries must stay in memory. | M4A, AAC, WMA, WebM, AMR and AC3 queries are rejected with an explicit message, although the corpus pipeline accepts them. |
+| Invalid uploads are client errors | Undecodable files now return HTTP 400 with a clear message instead of a misleading 503 "service unavailable". | The server still does not replace an antivirus. |
+
+Tests: `tests/test_query_preparation.py` checks identity with the Formatted output, warnings instead of rejections, byte-for-byte reuse of Trusted images, that warnings never reach the prompt, accepted/rejected formats and HTTP status codes, all without storage, models or network.
 
 ## Interpreting evidence
 

@@ -37,18 +37,44 @@ def species_mentions(text):
     ]
 
 
+def _singular_forms(tokens):
+    """Plural-tolerant matching for the vocabulary gate (dogs -> dog, lobos -> lobo).
+
+    Only extends the matched words; it never removes a token, so the previous
+    vocabulary behaves exactly as before.
+    """
+    forms = set(tokens)
+    for token in tokens:
+        if token == 'wolves':
+            forms.add('wolf')
+        if len(token) > 3 and token.endswith('s'):
+            forms.add(token[:-1])
+        if len(token) > 4 and token.endswith('es'):
+            forms.add(token[:-2])
+    return forms
+
+
 def domain_hint(text):
-    """Conservative vocabulary gate, NOT a calibrated out-of-distribution detector."""
+    """Conservative vocabulary gate, NOT a calibrated out-of-distribution detector.
+
+    Purpose: stop clearly unrelated requests (a pizza recipe, a photographed car)
+    before retrieval and the CPU-expensive generator, instead of producing a
+    fluent answer outside the wildlife domain. A word list is inspectable and
+    deterministic; its cost is false rejections, which surface as an explicit
+    abstention rather than a wrong answer. Plurals and common caption words
+    (BLIP often says "dogs" for wolves or "pig" for boars) are accepted.
+    """
     import yaml
 
     terms = words(
-        'animal animals wildlife fauna bird birds ave aves mammal mammals reptile amphibian '
-        'frog owl eagle lynx wolf deer boar robin kingfisher lizard cat dog bear fox fish '
+        'animal animals wildlife fauna creature bird birds ave aves mammal mammals reptile amphibian '
+        'frog toad owl eagle hawk falcon raptor lynx wolf deer stag fawn boar pig hog robin '
+        'kingfisher lizard cat wildcat dog puppy bear fox fish '
         'rana buho aguila lince lobo ciervo jabali petirrojo lagarto felino '
         'habitat behavior behaviour comportamiento conservation conservacion biodiversidad biodiversity ecology ecologia'
     )
     species = yaml.safe_load((ROOT / 'config/species.yaml').read_text(encoding='utf-8'))['species']
-    if words(text) & terms:
+    if _singular_forms(words(text)) & terms:
         return True
     normalized = ' '.join(re.findall(r'[a-z]+', unicodedata.normalize('NFKD', text.lower())))
     for entry in species:

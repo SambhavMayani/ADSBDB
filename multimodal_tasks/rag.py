@@ -76,10 +76,16 @@ class RagService:
             source_parts(input_source_key, 'images')
             if image is None:
                 raise ValueError('A stored-image reference requires its image bytes')
+        from multimodal_tasks.query_preparation import prepare_query_text
+
+        # Same canonical text contract as the indexed corpus (Formatted/Trusted).
+        question = prepare_query_text(question)
+        if len(question) < 3:
+            raise ValueError('La pregunta debe tener entre 3 y 1000 caracteres')
         if not self._lock.acquire(blocking=False):
             raise RuntimeError('Another RAG request is running')
         try:
-            return self._answer(question.strip(), image, input_source_key)
+            return self._answer(question, image, input_source_key)
         finally:
             self._lock.release()
 
@@ -103,6 +109,7 @@ class RagService:
             'input_sha256': hashlib.sha256(image).hexdigest() if image else None,
             'input_source_key': input_source_key,
             'caption': None,
+            'query_preparation': None,
             'visual_candidates': [],
             'limitations': 'Las citas de las respuestas aceptadas se contrastan con los extractos; esto no prueba la veracidad semántica ni identifica la especie. La imagen se interpreta mediante BLIP, no directamente por el LLM.',
         }
@@ -136,12 +143,22 @@ class RagService:
             )
             return result
 
+        prepared = None
         if image:
+            from multimodal_tasks.query_preparation import prepare_query_image
+
+            # Uploaded images receive the Formatted JPEG representation; an image read
+            # from Trusted is already canonical and is reused without re-encoding.
+            # Trusted quality signals are warnings only and never enter the prompt.
+            tick = time.perf_counter()
+            prepared = prepare_query_image(image, already_canonical=input_source_key is not None)
+            result['query_preparation'] = prepared.report
+            timings['query_preparation_seconds'] = round(time.perf_counter() - tick, 3)
             LOGGER.info('RAG %s: describing query image locally', result['request_id'])
             with self.search.lock:
                 self.search.encoders.release_all()
                 tick = time.perf_counter()
-                visual = self.captioner(image, allow_download=False)
+                visual = self.captioner(prepared.data, allow_download=False)
             if not isinstance(visual, str) or not visual.strip():
                 raise ValueError('The visual model returned an empty description')
             result.update(
@@ -158,7 +175,7 @@ class RagService:
         rankings = []
         if image:
             visual_rows = self.search.media(
-                image, 'images', mixed=True, limit=self.policy.retrieval_candidates
+                prepared, 'images', mixed=True, limit=self.policy.retrieval_candidates
             )
             rankings.append(visual_rows)
             result['visual_candidates'] = visual_candidates(visual_rows)

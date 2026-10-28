@@ -348,10 +348,30 @@ def test_http_rag_contract_and_invalid_stored_reference():
 
 
 @pytest.mark.parametrize(
-    'text', ['lince ibérico', 'Iberian lynx', 'hábitat mediterráneo', 'Bubo bubo']
+    'text',
+    [
+        'lince ibérico',
+        'Iberian lynx',
+        'hábitat mediterráneo',
+        'Bubo bubo',
+        # Real BLIP-style captions and plural questions previously rejected.
+        'a group of dogs sitting in front of a white background',
+        'two wolves walking in the snow',
+        'a pig standing in the mud',
+        '¿Qué comen los lobos?',
+        'ranas en una charca',
+    ],
 )
 def test_domain_gate_accepts_project_terms(text):
     assert domain_hint(text)
+
+
+@pytest.mark.parametrize(
+    'text',
+    ['two pizzas on plates', 'red sports cars parked', 'laptops on desks', 'una receta de pizzas'],
+)
+def test_plural_tolerance_does_not_admit_unrelated_requests(text):
+    assert not domain_hint(text)
 
 
 def test_policy_file_is_explicit_and_reproducible():

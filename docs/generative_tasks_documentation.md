@@ -8,7 +8,10 @@ La página 12 del enunciado (Constraint 14) pide tareas generativas con modelos 
 
 ```text
 Pregunta + imagen opcional (subida o seleccionada en Trusted)
-    → validación de archivo y descripción visual BLIP, si hay imagen
+    → validación de archivo y preparación en memoria como el corpus:
+      imagen subida → JPEG de Formatted; imagen de Trusted sin recodificar;
+      mediciones de Trusted solo como avisos; pregunta en UTF-8 NFC
+    → descripción visual BLIP, si hay imagen
     → comprobación conservadora de vocabulario del dominio
     → recuperación visual CLIP y textual E5 / CLIP
     → fusión RRF por activo y contexto limitado de fuentes
@@ -17,7 +20,7 @@ Pregunta + imagen opcional (subida o seleccionada en Trusted)
     → respuesta con [S1], [S2]... o abstención explícita
 ```
 
-Una pregunta de texto utiliza los documentos e imágenes del corpus sin requerir una imagen de entrada. Una imagen de Trusted se lee sin modificarla. La imagen externa de consulta permanece en memoria y no se indexa.
+Una pregunta de texto utiliza los documentos e imágenes del corpus sin requerir una imagen de entrada. Una imagen de Trusted se lee sin modificarla. La imagen externa de consulta permanece en memoria y no se indexa; antes de BLIP y CLIP recibe la conversión JPEG de Formatted, y las mediciones de Trusted (por ejemplo, baja nitidez) se muestran como aviso en la interfaz y en la traza, sin bloquear la consulta. El aviso no se añade al prompt de Qwen: la gramática JSON solo permite afirmaciones citadas, por lo que no aparecería en la respuesta y solo podría inducir abstenciones. Véanse las [decisiones](decision_log.md#query-inputs-same-processing-without-the-zones).
 
 ## 2. Arquitectura y modelos
 
@@ -64,7 +67,12 @@ Las preguntas multipartes utilizan una posición por aspecto en la gramática, e
 
 **Alcance de la comprobación:** prueba que la cita existe y está asociada a una fuente entregada. No demuestra que la paráfrasis se deduzca de ella, que el documento sea verdadero ni que una especie esté correctamente identificada. Se requiere evaluación humana de esos aspectos.
 
-La comprobación previa de dominio usa vocabulario y nombres del proyecto. Si la descripción no reconoce un concepto animal, se abstiene antes del LLM. Es una heurística conservadora, **no un detector OOD calibrado**: puede rechazar imágenes válidas o admitir entradas no pertinentes. Una pizza o coche descritos de forma inequívoca deben funcionar como ejemplos negativos; una descripción BLIP errónea puede cambiar la decisión.
+La comprobación previa de dominio (`domain_hint`) usa vocabulario de fauna y los nombres de `config/species.yaml`. Con imagen se aplica a la descripción de BLIP; sin imagen, a la pregunta. Si no reconoce un concepto animal, se abstiene **antes de la recuperación y del LLM**.
+
+- **Por qué existe:** el corpus solo cubre diez especies ibéricas. Ante una receta de pizza o un coche, el sistema no debe gastar minutos de CPU en Qwen ni producir una respuesta fluida fuera de su dominio; una abstención explícita es preferible a una respuesta no respaldada.
+- **Por qué una lista de palabras:** es determinista, inspeccionable y no carga ningún modelo adicional. Un umbral de similitud CLIP con el corpus exigiría calibrar un valor sin datos etiquetados: las puntuaciones no son probabilidades y cambian según el tipo de consulta (véase [Tasks 1 y 2](multimodal_tasks_documentation.md)).
+- **Coste aceptado:** es una heurística conservadora, **no un detector OOD calibrado**. Puede rechazar entradas válidas (falsos rechazos, visibles como `visual_domain_unrecognized` o `query_domain_unrecognized`) o admitir entradas no pertinentes, y depende de que BLIP describa bien la imagen.
+- **Mitigación (28-10-2026):** una prueba real con la descripción *"a group of dogs…"* se rechazaba porque la lista tenía `dog` pero no `dogs`. Ahora se aceptan plurales (dogs → dog, wolves → wolf, lobos → lobo) y palabras habituales de BLIP para nuestras especies (pig, toad, hawk, creature…). Los ejemplos negativos (pizza, coche, portátil, también en plural) siguen abstenidos; ambos casos tienen tests en `tests/test_rag.py`.
 
 ## 5. Recursos y reproducibilidad
 

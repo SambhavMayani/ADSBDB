@@ -296,7 +296,7 @@ Implementation: multimodal_tasks/search.py, exploitation_zone/encoders.py and ve
 
 ## Task 1 discovers related assets within a modality
 
-A reference image retrieves images; a recording retrieves recordings; a text query uses E5 for texts. Stored-record queries reuse the existing vector and exclude the entire reference asset, including its other segments. An external query is embedded in memory without ingestion. Results are grouped by asset so a long document or recording does not occupy the ranking solely through repeated chunks.
+A reference image retrieves images; a recording retrieves recordings; a text query uses E5 for texts. Stored-record queries reuse the existing vector and exclude the entire reference asset, including its other segments. An external query is never ingested: in memory it reuses the Formatted conversion (JPEG RGB, FLAC PCM16, NFC text) so it is comparable with the indexed corpus, and Trusted checks such as blur only produce non-blocking warnings (justified in docs/decision_log.md). Results are grouped by asset so a long document or recording does not occupy the ranking solely through repeated chunks.
 
 The metric, exact/approximate search paths and space-compatibility rules are explained on page 7. Tests exercise both the bounded exact path and a larger real Chroma collection. Visually related but taxonomically different animals can rank together; similarity alone does not verify species identity.
 
@@ -332,7 +332,7 @@ Task 3 automatically retrieves stored evidence before invoking a pretrained gene
 
 ## A bounded multimodal retrieval pipeline
 
-For image input, BLIP produces an unverified description and CLIP retrieves visual candidates. Candidate labels guide text searches by requested aspect, such as habitat or diet; a bounded lexical scan complements E5 and retains distinct passages from the same article. A global query remains available so retrieval is not reduced to a hard species assignment. We avoid injecting a noisy caption verbatim into every biological search.
+For image input, an upload first receives the Formatted JPEG (a stored Trusted image is reused unchanged); BLIP produces an unverified description and CLIP retrieves visual candidates. Quality warnings are shown to the user, never added to the prompt. Candidate labels guide text searches by requested aspect, such as habitat or diet; a bounded lexical scan complements E5 and retains distinct passages from the same article. A global query remains available so retrieval is not reduced to a hard species assignment. We avoid injecting a noisy caption verbatim into every biological search.
 
 Rank fusion selects references, then an evidence selector packs at most eight literal units and 1,600 characters for generation. Full reference excerpts remain available in the interface. The prompt treats retrieved material as data, preserves uncertainty about the uploaded animal and asks for concise claims backed by allowed evidence IDs.
 
@@ -340,7 +340,7 @@ Rank fusion selects references, then an evidence selector packs at most eight li
 
 A 3B quantised instruction model makes local CPU execution practical without a paid API or a GPU requirement. The pinned GGUF is verified by SHA-256; llama.cpp generates under a JSON grammar. BLIP provides a separate, auditable image-to-text stage. We accepted the information loss of this adapter to control memory and keep retrieval and generation independently testable. Qwen receives text, **not image pixels**; this is not a native visual question-answering model like the assignment's LLaVA example.
 
-Multi-aspect requests use constrained slots for up to two claims. An unsupported aspect can return null and becomes an explicit partial answer. Post-validation checks structure, allowed source IDs, exact quote membership, length and obvious incomplete clauses. It does not prove semantic entailment. Domain and aspect planning use vocabulary heuristics and can miss unfamiliar phrasing.
+Multi-aspect requests use constrained slots for up to two claims. An unsupported aspect can return null and becomes an explicit partial answer. Post-validation checks structure, allowed source IDs, exact quote membership, length and obvious incomplete clauses. It does not prove semantic entailment. A vocabulary domain gate stops unrelated requests before the costly generator; it is inspectable and needs no uncalibrated threshold, but can falsely reject (plurals are now accepted). Aspect planning is also lexical and can miss unfamiliar phrasing.
 
 ## Failure states and observed behavior
 

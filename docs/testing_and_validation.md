@@ -58,6 +58,7 @@ A clean reference corpus alone cannot demonstrate robust rejection. These tests 
 | Concurrent writers, child timeout, Unicode logs | Reject conflicting runs, terminate owned children, preserve readable diagnostics |
 | Invalid policy, non-finite vector, missing/duplicate segment | Reject incompatible publication rather than trusting counts alone |
 | Invalid citations, incomplete JSON, missing weights or RAM | Separate technical error from abstention; reject unsupported output and release resources |
+| External query files and typed queries | Same Formatted conversion and Trusted measurements as the corpus, in memory; quality signals only warn; unsupported or undecodable files return HTTP 400; tests/test_query_preparation.py |
 
 Focused reproduction:
 
