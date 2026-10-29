@@ -380,7 +380,8 @@
       "docs/presentation/speaker_script.md": "f02b25c9a6b210b9d049d5726ae8a02ab6fdf9ebe3795889934456935e28046a",
       "docs/presentation/pipeline_overview.png": "d01a608f334e534b63534f9f36c56490e2859fba4bacaa4417ea94b775d3a35b"
     },
-    "local_checks": "reports/validation/presentation_revision/validation_cosine.json"
+    "local_checks": "reports/validation/presentation_revision/validation_cosine.json",
+    "superseded_by": "query_preparation_review"
   },
   "presentation_algorithms_review": {
     "recorded_at_utc": "2026-10-25T21:04:33.534493+00:00",
@@ -549,6 +550,199 @@
       "trusted_zone/reporting/generate_image_report.py": "0eabb2e7e86c97883162d696c096e2a49179c607ce22e6b8dd9f5efcb36d89ae",
       "trusted_zone/reporting/generate_modality_report.py": "273af97157e3af2db6e245325572dd140008601d67806f48d7ab77a7b77a3531"
     },
-    "local_evidence": "reports/validation/report_trusted/"
+    "local_evidence": "reports/validation/report_trusted/",
+    "superseded_by": "query_preparation_review"
+  },
+  "query_preparation_review": {
+    "date_local": "2026-10-28",
+    "base_commit": "605d77b26f754081b9030b71d7eede7c4f5ffdb4",
+    "scope": "Review colleague query-processing commit; centralize early resource guards; migrate maintained report to LaTeX; revise presentation and plain-English speech.",
+    "received_commit_tests": {
+      "passed": 431,
+      "deselected": 1
+    },
+    "current_offline": {
+      "passed": 437,
+      "failures": 0,
+      "errors": 0,
+      "deselected": 1,
+      "seconds": 49.283,
+      "statement_coverage_percent": 68.17,
+      "lines_covered": 3671,
+      "lines_valid": 5385,
+      "junit": "reports/validation/query_review/offline.xml",
+      "coverage": "reports/validation/query_review/coverage.xml"
+    },
+    "change": "validate_query_media applies encoded-size, pixel, duration and channel guards before conversion for web, preparation and RAG; malformed inputs raise client-level ValueError. Six additional regression cases. Shared Formatted/Trusted functions and existing encoder contracts retained.",
+    "checks": {
+      "ruff": "passed",
+      "ruff_format": "78 files unchanged",
+      "markdown_local_links": "passed",
+      "configured_secret_scan_including_tex": "no matches",
+      "protected_paths_in_git_candidates": []
+    },
+    "not_rerun": [
+      "native model inference",
+      "production or isolated S3 integration",
+      "browser visual acceptance",
+      "remote GitHub Actions"
+    ],
+    "data_access": "No production S3 or Chroma clients opened by this review. Offline tests use temporary fixtures and disallow production MinIO endpoints. Existing 6021-vector evidence remains historical, not a new recount.",
+    "report": {
+      "maintained_source": "docs/report/main.tex",
+      "engine": "Tectonic 0.17.0 / XeTeX",
+      "compile": "success",
+      "builtin_editor_compile": "timed out; standalone Tectonic build succeeded",
+      "numbered_pages": 10,
+      "physical_pages": 11,
+      "visual_review": "All eleven pages, with rerender of modified pages; no overfull boxes in final log",
+      "legacy_markdown": "docs/final_report.md is a compatibility link, not duplicated narrative"
+    },
+    "presentation": {
+      "slides": 24,
+      "speech_words": 1933,
+      "estimated_seconds": 1050,
+      "estimation": "125 words/minute plus brief pauses, rounded per slide; not a measured rehearsal",
+      "script_pages": 25,
+      "changed_slide_pixels": [
+        5,
+        6,
+        7,
+        8,
+        19,
+        22,
+        23
+      ],
+      "unchanged_slides": "Other 17 slide PNGs byte/pixel compared with prior rendered version; includes pipeline slide 4",
+      "editable_charts": "Both original chart XML, relationships and workbook bytes retained; package/layout/import and workbook validation passed",
+      "speaker_consistency": "All 24 PDF speeches match content JSON and PPTX notes",
+      "native_powerpoint_opened": false
+    },
+    "sha256": {
+      "docs/report/main.tex": "58fd70be50dba270748e2a6a21924a6b913f4e709cb0e92c0de1634cf171ede6",
+      "docs/ecosentinel_report.pdf": "c4dc417902caa36d2d3a79ca28339f786f40e867b6a5956c1b3a5a54c563ee27",
+      "docs/presentation/EcoSentinel_presentation.pptx": "046102f8d42e456d525cf2f31e0c5ce38113038b6b188087dd54a6c87221ef86",
+      "docs/presentation/EcoSentinel_presentation.pdf": "1dcd11bbf2d09b92ea6c237911eed94e788cef4acd664e429314e79119bd29ca",
+      "docs/presentation/presentation_content.json": "c1cd59c1707de9f9c0a999acb96e445051cae51c8b3d916022e44e7b755970ae",
+      "docs/presentation/speaker_script.md": "4d96445ce92d51f259d67cc902fd6f5ab0480d744bdfa8527f35962b42fdfddb",
+      "docs/presentation/speaker_script.pdf": "a1c55addb916397727fd34d274c10daaa7f50d3e694e501e4c0a708da887a891",
+      "multimodal_tasks/query_preparation.py": "fa42c012ac4c1d46a8505e952d8144e4f187ee79ad03608db12975cca407aa35",
+      "multimodal_tasks/search.py": "bfdf2a4b84c337c897d63c8b5478b15b2d28a6c0174db2c22cfef234b18c7127",
+      "multimodal_tasks/rag.py": "2e915434c954df36067174a1de8b5b0686aa5c51b9479a29c1ce7efcc5c454a3",
+      "webapp/server.py": "e4be7ea5f55b18e9fd01a4baea730aa588671b40678939c4db3368652b4d2701",
+      "tests/test_query_preparation.py": "e0f9dcb155e9ae95de173168c30e5733faecaa52aa4f5f5522569a5d6f3dac62",
+      "tests/test_rag.py": "950a540d7bd060d5ee7fc71bff9d3a3c92be8235ab0adcccb87d76ddee07cc54"
+    },
+    "document_artifacts_superseded_by": "readability_review"
+  },
+  "readability_review": {
+    "date_local": "2026-10-29",
+    "base_commit": "605d77b26f754081b9030b71d7eede7c4f5ffdb4",
+    "scope": "Incremental test expansion, plain-English LaTeX report/manual and connected presentation speech. No production behaviour changes in this revision.",
+    "offline": {
+      "passed": 469,
+      "failures": 0,
+      "errors": 0,
+      "deselected": 1,
+      "seconds": 73.932,
+      "added_cases": 32,
+      "statement_coverage_percent": 72.37,
+      "lines_covered": 3897,
+      "lines_valid": 5385,
+      "previous_lines_covered": 3671,
+      "previous_lines_valid": 5385,
+      "junit": "reports/validation/readability_review/offline.xml",
+      "coverage": "reports/validation/readability_review/coverage.xml"
+    },
+    "test_scope": "Storage doubles, generated raw files, temporary SQLite metadata faults and filtered 64/65 search boundaries. The complete suite also exercises temporary real Chroma and local HTTP. No production S3/Chroma client opened.",
+    "production_hashes_unchanged_since_query_preparation_review": {
+      "multimodal_tasks/query_preparation.py": true,
+      "multimodal_tasks/search.py": true,
+      "multimodal_tasks/rag.py": true,
+      "webapp/server.py": true
+    },
+    "checks": {
+      "ruff": "passed",
+      "ruff_format": "79 files already formatted",
+      "static": {
+        "python_files_parsed": 79,
+        "broken_local_links": [],
+        "secret_value_matches": [],
+        "protected_paths_in_git_candidates": []
+      },
+      "plan": "16 sequential steps; no storage or model execution"
+    },
+    "report": {
+      "source": "docs/report/main.tex",
+      "engine": "Tectonic 0.17.0 / XeTeX",
+      "compile": "success",
+      "content_pages": 8,
+      "manual_pages": 2,
+      "cover_pages": 1,
+      "physical_pages": 11,
+      "overfull_boxes": 0,
+      "visual_review": "All final content/manual pages reviewed; final last page rerendered after fitting source references."
+    },
+    "presentation": {
+      "slides": 25,
+      "speech_words": 2022,
+      "estimated_seconds": 1105,
+      "script_pages": 26,
+      "estimation": "Rehearsal allowance including pointing/pauses, not measured delivery time.",
+      "pipeline_overview_preserved": true,
+      "detailed_process_slide": 5,
+      "visual_comparison": {
+        "unchanged_original_slide_visuals_except_page_numbers": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          17,
+          18,
+          19,
+          20,
+          21,
+          24
+        ],
+        "changed_original_slides": [
+          16,
+          22,
+          23
+        ],
+        "inserted_slide": 5
+      },
+      "editable_charts": "Two original chart XML parts and embedded workbooks preserved byte-for-byte.",
+      "speech_consistency": "All 25 PDF speeches match content JSON and PPTX notes.",
+      "package_layout_import_checks": "passed, zero findings",
+      "native_powerpoint_opened": false
+    },
+    "not_rerun": [
+      "native model inference",
+      "real S3 integration",
+      "browser visual acceptance",
+      "remote GitHub Actions"
+    ],
+    "data_preservation": "No production dataset rebuild or model acquisition. Existing 6021-vector counts remain historical reference evidence, not a new recount.",
+    "sha256": {
+      "docs/ecosentinel_report.pdf": "9903380ecd58f723f32c4ee121df8061f21aa8ef999f5a5422c74f668701b4c0",
+      "docs/presentation/EcoSentinel_presentation.pptx": "0d14b2bfcbc13feedb5d65d653346e916a121a4fedbf3c3ca6e59ad5dabe87d6",
+      "docs/presentation/EcoSentinel_presentation.pdf": "3bd4c7dde055342c3d72976379ddb23094197a5f7f74128a2a4e838415875dd5",
+      "docs/presentation/speaker_script.pdf": "07fb871ff06dacb8b1c8410a53e4c1ba01edee504df6c281ac253da1cf6a62b6",
+      "docs/presentation/speaker_script.md": "3b8a1cdcd89fbb133b41e04d6aa62b8111eb28d5386022ee6551a61170614a2e",
+      "docs/presentation/presentation_content.json": "1aaa321a031715800ca6c2d8cecbb956ceb869a17dc7fa7c3159189e1ec07ae7",
+      "docs/report/main.tex": "e8a1317f145117fa71d48bc64e3a93606be34fd931e49b6afcc645b7ce3c8384",
+      "tests/test_storage_boundaries.py": "6f0718599dfa41fc022a53ed011d2529b064d4ded25f0a7e894f7ed2998b6003"
+    }
   }
 }

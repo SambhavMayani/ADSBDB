@@ -274,7 +274,7 @@ def test_concurrent_requests_are_rejected():
 
 def test_invalid_image_fails_before_captioning():
     captioner = Mock()
-    with pytest.raises(OSError):
+    with pytest.raises(ValueError, match='invalid image'):
         RagService(Search(), captioner=captioner).answer('Qué animal es', image=b'invalid image')
     captioner.assert_not_called()
 

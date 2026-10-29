@@ -12,14 +12,14 @@ La integración añade bloqueo independiente de la ruta de logs, UTF-8 Windows, 
 
 | Etapa | Pasos |
 |---|---|
-| Storage | Comprobar conexión; crear solo los buckets que falten |
-| Landing | Ingesta con Security Gate; promoción verificada a Persistent |
-| Formatted | Imágenes, audio, texto |
-| Trusted | Imágenes, audio, texto; manifiestos e informes |
-| Exploitation | Cinco procesos secuenciales, uno por colección |
-| Verification | Conciliar fuentes, hashes y cobertura de fragmentos |
+| Storage | **1** Comprobar conexión; **2** crear solo los buckets que falten |
+| Landing | **3** Ingesta con Security Gate; **4** copiar y verificar en Persistent |
+| Formatted | **5** Imágenes; **6** audio; **7** texto |
+| Trusted | **8** Imágenes; **9** audio; **10** texto; manifiestos e informes |
+| Exploitation | **11** images; **12** text; **13** audio; **14** image_text; **15** audio_text |
+| Verification | **16** Conciliar fuentes, hashes y cobertura de fragmentos |
 
-La adquisición explícita ocurre antes de la ingesta. `--plan` no abre servicios, modelos ni informes; `--run` autoriza ejecutar el plan. No se arranca Docker ni se adquieren datos de fauna automáticamente.
+Todos los pasos son secuenciales; el esquema detallado está en la diapositiva 5 de la presentación. La adquisición explícita añade tres descargas después de Storage y antes de la ingesta (19 pasos en total). `--plan` no abre servicios, modelos ni informes; `--run` autoriza ejecutar el plan. No se arranca Docker ni se adquieren datos de fauna automáticamente.
 
 ```bash
 python -m orchestration.pipeline --plan

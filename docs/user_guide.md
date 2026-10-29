@@ -225,6 +225,16 @@ These commands assume the query copy, local S3 service and cached embedding mode
 
 To check the UI, search with top-k **1**, then **5**, then **50** and compare the returned count and displayed limit. A small or filtered set may yield fewer assets. Repeat with an image/audio query and a related-search button. Empty, fractional, zero or greater-than-50 values must not submit a search. The selected value is retained when changing tabs in the current page; reloading resets it to 8.
 
+### What happens to an uploaded query
+
+Tasks 1, 2 and 3 reuse `multimodal_tasks/query_preparation.py` in memory. Images receive the same RGB JPEG quality-95 conversion as the stored data (white beneath transparency; first frame of multi-image files). Audio becomes FLAC PCM16 before the encoder's mono/resampling step. Typed text receives NFC and line-ending/control-character normalisation. A stored Trusted JPEG stays unchanged.
+
+Blur, darkness, small images and quiet audio can still carry useful information, so quality signals appear as warnings. Queries do not run duplicate rejection: finding an existing match is often the purpose of the request. Watermark and document-level text heuristics are omitted; they are not calibrated query-relevance tests. Warnings do not enter Qwen's evidence prompt. Invalid encoding and resource limits remain hard errors: **10 MiB per file, 20 MP per image, 30 seconds and eight channels per recording**. The same limits apply to direct service/CLI preparation.
+
+Image input supports JPEG, PNG, WebP, MPO, BMP, GIF and TIFF. Audio supports containers decoded in memory by the installed libsndfile, including WAV, FLAC, OGG/Opus, AIFF and CAF; MP3 depends on library support. Formats that need the converter's temporary-file ffmpeg path are rejected for queries. No uploaded file enters MinIO or Chroma. The response includes an input hash and preparation report; an explicit RAG report export can retain that metadata, not the image bytes.
+
+To check this in the interface, upload a transparent PNG and inspect the preparation information in the RAG trace. Try a small/dark image: it should warn and still search. Try a corrupt file: it should fail before inference. The warning is not an identification and does not promise useful results. Repeat using a stored image to check that it is reused without re-encoding. Automated byte-equivalence and boundary tests are in `tests/test_query_preparation.py`.
+
 ### Cases to try in the interface
 
 | Case | UI action | Expected behavior |
@@ -240,7 +250,7 @@ To check the UI, search with top-k **1**, then **5**, then **50** and compare th
 | Task 3 two aspects | Image plus the question below | Separate supported claims, or explicit partial answer |
 | Unsupported content | Ask for a species' complete genome | Abstention when the evidence is absent |
 | Outside domain | RAG: `How do I bake a pizza?` | Domain abstention; heuristic can make mistakes |
-| Invalid upload | Corrupt file, image over 20 MP or file over 10 MB | Clear rejection without ingestion |
+| Invalid upload | Corrupt file, image over 20 MP or file over 10 MiB | Clear rejection without ingestion |
 
 Two-aspect example: `Describe el hábitat y la alimentación de las especies candidatas recuperadas, según las fuentes. No confirmes la especie de la fotografía.`
 

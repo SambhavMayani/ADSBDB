@@ -1,22 +1,38 @@
 # EcoSentinel testing and validation
 
-Current local review: **24 October 2026, Windows, Python 3.11.2, CPU**. Commands below are for Git Bash at the repository root with the virtual environment active. [Selected evidence](evidence/README.md) is versioned; complete generated reports stay local and ignored. This page replaces the chronological development log.
+Current incremental validation review: **29 October 2026, Windows, Python 3.11.2, CPU**. Older storage/native acceptance results below retain their original scope. Commands below are for Git Bash at the repository root with the virtual environment active. [Selected evidence](evidence/README.md) is versioned; complete generated reports stay local and ignored. This page replaces the chronological development log.
 
 ## 1. Measured results
 
 | Check | Observed result | Local evidence |
 |---|---|---|
-| Offline regression | **364 passed, 1 integration test deselected** | reports/validation/inputs_offline.xml |
+| Current offline regression | **469 passed, 1 integration test deselected** | reports/validation/readability_review/offline.xml |
 | Isolated real S3 + Chroma integration | **1 passed, 364 deselected**, two pipeline passes | reports/validation/inputs_integration.xml |
-| Offline statement coverage | **64.40%**, 3,393 / 5,269 statements | inputs_coverage.xml |
-| Combined statement coverage | **71.82%**, 3,784 / 5,269 statements | inputs_coverage_combined.xml |
+| Current offline statement coverage | **72.37%**, 3,897 / 5,385 statements | readability_review/coverage.xml |
+| Historical combined statement coverage | **71.82%**, 3,784 / 5,269 statements | inputs_coverage_combined.xml |
 | Real CPU CLI, recorded delivery smoke | **16/16 steps**, three synthetic assets, seven vectors | delivery_smoke_first.log |
 | Repeated real CPU CLI | **16/16 steps**, zero new vectors in all five spaces | delivery_smoke_repeat.log |
 | Real generative acceptance | **5/5 structural cases**, plus a separate frog web case | frog_acceptance_final.json; frog_ui_validation.json |
 | Original Chroma preservation | Same filenames, byte sizes and SHA-256; **6,021 vectors** | delivery_preservation.json; presentation_examples/retrieval_examples.json |
 | Original MinIO preservation | Same keys, sizes and ETags; **396 / 198 / 396 objects** | delivery_minio_preservation.json |
 
-Coverage measures executed statements, **not retrieval accuracy, biological correctness or the percentage of requirements completed**. Offline and combined figures have different execution scopes. Real-model CLI runs are outside pytest and are not added to coverage. The report PDF and this page include the 20 additional regressions recorded in the input-boundary review of [final_validation.json](evidence/final_validation.json); earlier execution records remain separately dated.
+Coverage measures executed statements, **not retrieval accuracy, biological correctness or the percentage of requirements completed**. Offline and combined figures have different execution scopes. Real-model CLI runs are outside pytest and are not added to coverage. The current `readability_review` is recorded separately in [final_validation.json](evidence/final_validation.json). Native model inference, storage integration and browser visual acceptance were not rerun for this revision. The 469 tests include the query cases and 32 additional storage/search boundary cases and execute local HTTP handlers; this does not establish retrieval accuracy.
+
+### Coverage improvement without changing the pipeline
+
+On 29 October, 32 tests were added in `tests/test_storage_boundaries.py`. The application code and measured scope stayed unchanged. Offline coverage rose from **3,671 to 3,897 of 5,385 statements** (68.17% to 72.37%). The additions assert retained bytes and metadata, correct failure status and query results; they do not merely invoke functions.
+
+| Area | Before | After | New evidence |
+|---|---:|---:|---|
+| Temporal ingestion | 33.73% | 90.53% | Repeat upload, new-upload limits, identity conflicts, valid/broken completion records, absent lineage |
+| Image formatting | 38.41% | 83.44% | Incremental conversion, dry-run, source-stream closure, contract conflicts, storage failures |
+| Trusted source gateway | 19.51% | 90.24% | Later rejection blocks indexing while accepted bytes remain; missing/error manifests handled explicitly |
+| Reconciliation | 25.42% | 79.66% | Missing/stale assets, incomplete parts, checksum mismatch, empty-dataset rejection, read-only SQLite |
+| Search boundary | Existing route coverage | Added boundary assertions | Exactly 64 versus 65 eligible vectors, with and without filters |
+
+Storage doubles isolate S3 failures. Reconciliation fixtures construct a small SQLite metadata database in a temporary directory; the earlier real Chroma/S3 integration remains separate evidence. No production client is opened by the added tests.
+
+**Why coverage is below 100%.** There are still 1,488 unexecuted statements in this offline run. They include real model adapters, acquisition paths, CLI wrappers and validation utilities, plus other untested branches. An integration or model run may exercise some of them, but we do not count that without measuring it in the same run. The next useful additions would target acquisition retries/pagination and untested audio/text publication failures, followed by isolated integration and opt-in cached-model checks. We do not exclude those modules or add meaningless assertions to make the percentage look better. Even 100% statement coverage would not prove complete branch coverage, correct model predictions or every failure scenario.
 
 ## 2. Fast verification without the reference corpus
 
@@ -111,7 +127,7 @@ Trusted validators write per-asset manifests. Report generators aggregate these 
 
 **GitHub Actions is GitHub's automated test service.** The versioned configuration is [quality.yml](../.github/workflows/quality.yml). A push or pull request starts checks on fresh Windows and Linux machines: install the same requirements, check dependencies and code style, and run the offline suite. A separate Linux job tests real S3/Chroma integration using isolated test storage. These checks use generated fixtures rather than the authors' local data or secrets. They do not publish or deploy the application. Native-model tests remain explicit local checks because cached weights, memory and timings vary.
 
-The **60% coverage threshold** means the offline tests must execute at least 60% of the measured code statements. It is a minimum regression guard, not a model-accuracy score or a grade. The measured local offline coverage is 64.40%; 71.82% includes the separate integration run. Test-result XML (JUnit) and coverage reports are saved as downloadable files, called **artifacts** in GitHub.
+The **60% coverage threshold** means the offline tests must execute at least 60% of the measured code statements. It is a minimum regression guard, not a model-accuracy score or a grade. The current offline coverage is 72.37%; the earlier 71.82% combined figure includes a separate integration run on older code, so these are not directly comparable. Test-result XML (JUnit) and coverage reports are saved as downloadable files, called **artifacts** in GitHub.
 
 GitHub enables Actions by default, but a repository or organisation can restrict or disable it. Availability alone does not define project tests: our workflow file supplies those instructions. Once that file is pushed and permitted, future pushes trigger checks automatically; no per-push activation is needed. If disabled, a repository administrator can review **Settings → Actions → General**. See [GitHub's repository settings](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository).
 

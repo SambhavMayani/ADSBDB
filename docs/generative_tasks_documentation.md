@@ -158,3 +158,7 @@ La aceptación automática registra estructura y conservación; la revisión sem
 Continuación: [Tasks 1/2](multimodal_tasks_documentation.md) · [Exploitation](exploitation_zone_documentation.md) · [Índice](README.md).
 
 El modelo GGUF oficial declara licencia Qwen Research; revisar su ficha al reutilizarlo fuera del contexto académico. No se publica el modelo ni el dataset en el repositorio.
+
+### Alcance de la validación de consultas (28 de octubre de 2026)
+
+La nueva preparación está comprobada con entradas sintéticas, dobles de modelos y peticiones HTTP locales: conversión idéntica a Formatted, JPEG de Trusted sin recodificar, avisos fuera del prompt y límites antes de convertir. Las aceptaciones nativas de Qwen/BLIP y el ejemplo de la rana son anteriores a esta revisión; no se presentan como una nueva ejecución. Los límites de seguridad no se convierten en avisos: 10 MiB, 20 MP y archivos decodificables siguen siendo obligatorios. El informe devuelve hash, pasos y métricas, sin persistir los bytes de la imagen.

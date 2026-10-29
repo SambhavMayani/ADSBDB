@@ -260,6 +260,56 @@ def test_rag_reuses_a_stored_trusted_jpeg_byte_for_byte():
     assert seen == [stored]
 
 
+@pytest.mark.parametrize('modality', ['images', 'audio'])
+def test_direct_query_rejects_byte_budget_before_conversion(monkeypatch, modality):
+    import multimodal_tasks.query_preparation as preparation
+
+    raw = image_bytes() if modality == 'images' else wav_bytes()
+    monkeypatch.setattr(preparation, 'MAX_QUERY_BYTES', len(raw) - 1)
+
+    def must_not_convert(*args, **kwargs):
+        raise AssertionError('Oversized input reached the converter')
+
+    monkeypatch.setattr(preparation, 'convert_to_jpeg', must_not_convert)
+    monkeypatch.setattr(preparation, 'convert_audio', must_not_convert)
+    prepare = prepare_query_image if modality == 'images' else prepare_query_audio
+    with pytest.raises(ValueError, match='10 MiB'):
+        prepare(raw)
+
+
+def test_direct_image_pixel_budget_precedes_conversion(monkeypatch):
+    import multimodal_tasks.query_preparation as preparation
+
+    raw = image_bytes(size=(256, 256))
+    monkeypatch.setattr(preparation, 'MAX_QUERY_PIXELS', 256 * 256 - 1)
+
+    def must_not_convert(*args, **kwargs):
+        raise AssertionError('Oversized dimensions reached the converter')
+
+    monkeypatch.setattr(preparation, 'convert_to_jpeg', must_not_convert)
+    with pytest.raises(ValueError, match='20 megapixels'):
+        prepare_query_image(raw)
+
+
+@pytest.mark.parametrize('seconds,channels', [(30.01, 1), (0.1, 9)])
+def test_direct_audio_limits_precede_conversion(monkeypatch, seconds, channels):
+    import multimodal_tasks.query_preparation as preparation
+
+    raw = wav_bytes(seconds=seconds, rate=8000, channels=channels)
+
+    def must_not_convert(*args, **kwargs):
+        raise AssertionError('Oversized audio reached the converter')
+
+    monkeypatch.setattr(preparation, 'convert_audio', must_not_convert)
+    with pytest.raises(ValueError, match='30 seconds / 8 channels'):
+        prepare_query_audio(raw)
+
+
+def test_rag_invalid_image_is_a_value_error():
+    with pytest.raises(ValueError, match='invalid image'):
+        RagService(Search(), generator=generated).answer('What animal?', image=b'not image')
+
+
 @pytest.mark.e2e
 def test_http_upload_returns_results_and_query_preparation(tmp_path, monkeypatch):
     service, _ = offline_service(tmp_path, monkeypatch)

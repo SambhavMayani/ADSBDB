@@ -8,9 +8,9 @@ write files or add anything to the index.
 
 Policy for queries, different from the corpus:
 - Formatted conversions are applied exactly (JPEG RGB q95, FLAC PCM16, UTF-8 NFC).
-- Trusted measurements are reused, but every corpus rejection or warning becomes
-  a non-blocking user warning: a poor query still runs (poor query -> possibly
-  poorer results), the user keeps the decision.
+- Trusted measurements report non-blocking quality warnings. Mandatory decoding
+  and resource limits still reject unsafe input before conversion. Small or quiet
+  valid queries may run even when they would fail corpus acceptance.
 - An image already accepted in Trusted is not re-encoded: it is the canonical
   representation that was indexed.
 - Audio is accepted only in formats the Formatted converter decodes in memory
@@ -35,6 +35,52 @@ from formatted_zone.format_text import to_canonical_text
 QUERY_IMAGE_FORMATS = frozenset(SUPPORTED_IMAGE_FORMATS)
 # Audio containers the Formatted converter decodes without ffmpeg/temporary files.
 QUERY_AUDIO_FORMATS = frozenset(SOUNDFILE_DECODABLE)
+MAX_QUERY_BYTES = 10 * 1024 * 1024
+MAX_QUERY_PIXELS = 20_000_000
+
+
+def validate_query_media(raw: bytes, modality: str) -> str:
+    """Check resource limits before conversion, for web, CLI and Python callers.
+
+    Quality warnings are optional guidance; decoding and resource limits are
+    mandatory. Header checks precede full decoding or encoder allocation.
+    """
+    if not isinstance(raw, bytes) or not 1 <= len(raw) <= MAX_QUERY_BYTES:
+        raise ValueError('Query file must be 1 byte–10 MiB')
+    if modality == 'images':
+        from PIL import Image, UnidentifiedImageError
+
+        try:
+            with Image.open(io.BytesIO(raw)) as image:
+                if image.format not in QUERY_IMAGE_FORMATS:
+                    raise ValueError('Unsupported image format')
+                if image.width * image.height > MAX_QUERY_PIXELS:
+                    raise ValueError('Image exceeds 20 megapixels')
+                source_format = image.format.lower()
+                image.verify()
+        except (OSError, UnidentifiedImageError, Image.DecompressionBombError) as exc:
+            raise ValueError('Unsupported or invalid image file') from exc
+        return source_format
+    if modality == 'audio':
+        import soundfile as sf
+
+        try:
+            source_format = detect_source_format(raw, '')
+        except ValueError as exc:
+            raise ValueError('Unsupported or invalid audio file for in-memory queries') from exc
+        if source_format not in QUERY_AUDIO_FORMATS:
+            raise ValueError('Unsupported or invalid audio file for in-memory queries')
+        try:
+            with sf.SoundFile(io.BytesIO(raw)) as audio:
+                if audio.frames <= 0 or audio.samplerate <= 0:
+                    raise ValueError('Empty or invalid audio file')
+                if audio.frames / audio.samplerate > 30 or audio.channels > 8:
+                    raise ValueError('Query audio is limited to 30 seconds / 8 channels')
+        except (RuntimeError, OSError) as exc:
+            raise ValueError('Unsupported or invalid audio file') from exc
+        return source_format
+    raise ValueError('Invalid upload modality')
+
 
 IMAGE_WARNINGS = {
     'low_sharpness': (
@@ -125,22 +171,12 @@ def prepare_query_image(raw: bytes, *, already_canonical: bool = False) -> Prepa
     converted before indexing, so a JPEG is reused byte for byte and only the
     measurements are repeated (re-encoding would move it away from its vector).
     """
-    from PIL import Image, UnidentifiedImageError
+    from PIL import UnidentifiedImageError
 
     from trusted_zone.quality.image_quality import analyze, image_rejection
     from trusted_zone.validate_images import load_policy
 
-    if not isinstance(raw, bytes) or not raw:
-        raise ValueError('Expected image bytes')
-    try:
-        with Image.open(io.BytesIO(raw)) as image:
-            source_format = image.format
-    except (OSError, UnidentifiedImageError, Image.DecompressionBombError) as exc:
-        raise ValueError('Unsupported or invalid image file') from exc
-    if source_format not in QUERY_IMAGE_FORMATS:
-        raise ValueError(
-            'Unsupported image format; accepted: ' + ', '.join(sorted(QUERY_IMAGE_FORMATS))
-        )
+    source_format = validate_query_media(raw, 'images').upper()
     if already_canonical and source_format == 'JPEG':
         data, steps = raw, ['trusted_image_reused_without_reencoding']
     else:
@@ -190,14 +226,7 @@ def prepare_query_audio(raw: bytes) -> PreparedQuery:
     from trusted_zone.quality.audio_quality import audio_metrics
     from trusted_zone.validate_audio import validate_config
 
-    if not isinstance(raw, bytes) or not raw:
-        raise ValueError('Expected audio bytes')
-    source_format = detect_source_format(raw, '')
-    if source_format not in QUERY_AUDIO_FORMATS:
-        raise ValueError(
-            'Unsupported audio format for in-memory queries; accepted: '
-            + ', '.join(sorted(QUERY_AUDIO_FORMATS))
-        )
+    source_format = validate_query_media(raw, 'audio')
     try:
         data, _, _ = convert_audio(raw, '', decoder='soundfile')
     except (RuntimeError, OSError) as exc:  # libsndfile errors derive from RuntimeError

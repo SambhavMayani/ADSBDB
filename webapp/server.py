@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import base64
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from io import BytesIO
 import json
 import logging
 import mimetypes
@@ -38,43 +37,10 @@ def query_upload(payload):
     multimodal_tasks.query_preparation; nothing is stored. Undecodable input is a
     client error (HTTP 400), not a service failure.
     """
-    from multimodal_tasks.query_preparation import QUERY_AUDIO_FORMATS, QUERY_IMAGE_FORMATS
+    from multimodal_tasks.query_preparation import validate_query_media
 
     data = base64.b64decode(payload.get('data', ''), validate=True)
-    if not data or len(data) > 10 * 1024 * 1024:
-        raise ValueError('Upload must be 1 byte–10 MB')
-    modality = payload.get('modality')
-    if modality == 'images':
-        from PIL import Image, UnidentifiedImageError
-
-        try:
-            with Image.open(BytesIO(data)) as image:
-                if image.format not in QUERY_IMAGE_FORMATS:
-                    raise ValueError(
-                        'Unsupported image format; accepted: '
-                        + ', '.join(sorted(QUERY_IMAGE_FORMATS))
-                    )
-                if image.width * image.height > 20_000_000:
-                    raise ValueError('Image exceeds 20 megapixels')
-                image.verify()
-        except (OSError, UnidentifiedImageError, Image.DecompressionBombError) as exc:
-            raise ValueError('Unsupported or invalid image file') from exc
-    elif modality == 'audio':
-        import soundfile as sf
-        from formatted_zone.format_audio import detect_source_format
-
-        if detect_source_format(data, '') not in QUERY_AUDIO_FORMATS:
-            raise ValueError(
-                'Unsupported audio format; accepted: ' + ', '.join(sorted(QUERY_AUDIO_FORMATS))
-            )
-        try:
-            with sf.SoundFile(BytesIO(data)) as audio:
-                if audio.frames / audio.samplerate > 30:
-                    raise ValueError('Audio query exceeds 30 seconds')
-        except RuntimeError as exc:  # libsndfile decoding errors
-            raise ValueError('Unsupported or invalid audio file') from exc
-    else:
-        raise ValueError('Invalid upload modality')
+    validate_query_media(data, payload.get('modality'))
     return data
 
 

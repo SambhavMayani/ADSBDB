@@ -27,6 +27,9 @@ Los datos se organizan bajo `images/<species_id>/`, `audio/<species_id>/` y `tex
 
 ## 2. Imágenes: JPEG/RGB/95
 
+**Por qué para fauna:** las fotografías contienen textura y variación de color. JPEG suele ocupar menos que PNG a una calidad visual aceptable; `quality=95` busca conservar detalle mientras reduce el coste de almacenar y leer fotografías. No es una garantía de menor tamaño para todos los archivos, ni de igual exactitud de búsqueda. PNG sería preferible para conservar píxeles/alpha exactamente. La calidad visual sí importa: por eso conservamos dimensiones y el original, y explicitamos la pérdida. Véase [PNG: The Definitive Guide, 9.4.1](https://www.libpng.org/pub/png/book/chapter09.html).
+
+
 **Entradas previstas:** `.jpg`, `.jpeg`, `.png`, `.webp`, `.bmp`, `.gif`, `.tif`, `.tiff` y `.mpo`, coherentes con el Security Gate. Pillow inspecciona la codificación interna; se encontraron archivos `.jpg` internamente MPO. En entradas multiframe se usa frame 0, sin expansión del número de activos.
 
 **Revisión 23-10-2026:** pruebas de modos de color, entradas inválidas, WAV/FLAC y extracción HTML/JSON/JSONL/Markdown/XML y texto UTF-16. El Security Gate reconoce BOM Unicode para no rechazar UTF-16/32 únicamente por sus bytes NUL. Los buckets pueden aislarse mediante variables de entorno y los clientes se crean de forma perezosa. El corpus original no se reconvirtió durante estas pruebas; véase [validación](testing_and_validation.md).
@@ -46,6 +49,9 @@ Los datos se organizan bajo `images/<species_id>/`, `audio/<species_id>/` y `tex
 Formatted **no** valora desenfoque, exposición, marcas de agua, duplicados ni adecuación de la especie. Eso pertenece a Trusted o a una revisión semántica posterior.
 
 ## 3. Audio: FLAC PCM16
+
+**Por qué para grabaciones de fauna:** una llamada débil puede convivir con lluvia, viento, insectos u otras especies. Evitamos añadir otra compresión perceptual, como un nuevo MP3/AAC, que podría descartar información acústica. FLAC comprime sin pérdida los valores PCM16 seleccionados, con menor almacenamiento que PCM sin comprimir en muchos casos; el tamaño depende del ruido y del contenido. Conservamos fondo y pausas, sin denoising ni recortes, porque pueden contener llamadas lejanas o contexto ecológico. Esto es una decisión de preservación, no una mejora de CLAP medida. Convertir audio de 24 bits/float a PCM16 sí puede perder precisión, y FLAC no recupera información perdida en un MP3 anterior. Véanse [FLAC Features](https://www.xiph.org/flac/features.html) y el contrato del conversor.
+
 
 **Script:** `formatted_zone/format_audio.py`.
 

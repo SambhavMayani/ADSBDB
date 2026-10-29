@@ -58,18 +58,10 @@ class RagService:
     def answer(self, question, *, image=None, input_source_key=None):
         if not isinstance(question, str) or not 3 <= len(question.strip()) <= 1000:
             raise ValueError('La pregunta debe tener entre 3 y 1000 caracteres')
-        if image is not None and (
-            not isinstance(image, bytes) or not 1 <= len(image) <= 10 * 1024 * 1024
-        ):
-            raise ValueError('Imagen de consulta inválida o mayor de 10 MB')
         if image is not None:
-            from io import BytesIO
-            from PIL import Image
+            from multimodal_tasks.query_preparation import validate_query_media
 
-            with Image.open(BytesIO(image)) as source:
-                if source.width * source.height > 20_000_000:
-                    raise ValueError('La imagen supera 20 megapíxeles')
-                source.verify()
+            validate_query_media(image, 'images')
         if input_source_key is not None:
             from exploitation_zone.contracts import source_parts
 

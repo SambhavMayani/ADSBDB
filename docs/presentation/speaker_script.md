@@ -1,206 +1,218 @@
 # EcoSentinel presentation script
 
-English · 24 slides · target 15:00; allow approximately 15–17 minutes after rehearsal.
+English, 25 slides, 2,022 spoken words. Rehearsal target **18:25** (approximately 18-20 minutes). Timing is an estimate; rehearse aloud together. Questions and live CPU generation are outside the timed talk.
 
-Read only the speech paragraphs aloud. Cues and source notes are not spoken. Questions and live CPU inference are outside the timed talk.
+| Slides | Speaker | Suggested time |
+|---|---|---|
+| 1-9 | Mario | 00:00-06:50 |
+| 10-19 | Sambhav | 06:50-14:05 |
+| 20-25 | Wassim | 14:05-18:25 |
 
-Mario: slides 1–8, 00:00–05:10. Sambhav: slides 9–18, 05:10–11:15. Wassim: slides 19–24, 11:15–15:00.
+Speak only the paragraphs below. Cues guide pointing and pauses. Use the recorded examples; native CPU requests can take minutes. The allocation is a proposal.
 
-## 01. EcoSentinel
+## 1. EcoSentinel
 
-**Mario · 00:00–00:25 · 25 seconds**
+**Mario / 00:00-00:30 / 30 seconds**
 
 Cue: Point to the photograph, then pause after the question
 
-Suppose we upload this photograph and ask what the animal eats. Where should the answer come from? EcoSentinel connects the image to stored wildlife evidence and lets us inspect the sources behind the response. We will show the engineering that makes this possible.
+Suppose we upload this photograph and ask what the animal eats. Where should the answer come from? EcoSentinel connects the image to wildlife information that we can check. We will follow that path from the original file to a search result, and finally to an answer with sources.
 
-## 02. A photograph starts the investigation
+## 2. A photograph starts the investigation
 
-**Mario · 00:25–00:45 · 20 seconds**
+**Mario / 00:30-01:00 / 30 seconds**
 
 Cue: The domain gives the pipeline a purpose
 
-Our use case is a shared wildlife collection for education and biodiversity exploration. Someone can start with a photograph, find related recordings and descriptions, and ask a question grounded in those documents. We chose Iberian fauna to keep that investigation concrete.
+That question matters outside a classroom too. A teacher preparing a wildlife lesson, or a field team reviewing an observation, may have a photograph but need a call recording or a habitat description. Those materials often sit in separate catalogues. We bring them together, using Iberian fauna as a clear and limited domain for the project.
 
-## 03. Three modalities, one reference dataset
+## 3. Three modalities, one reference dataset
 
-**Mario · 00:45–01:10 · 25 seconds**
+**Mario / 01:00-01:30 / 30 seconds**
 
 Cue: Counts describe the reference installation
 
-Our reference dataset contains one hundred images, thirty-four recordings and sixty-four texts across ten Iberian species. Wikimedia, Xeno-canto, Wikipedia and GBIF provide the source material. Availability is uneven: the lizard has no audio. We retain that gap and preserve attribution rather than inventing missing observations.
+To build that collection, we gathered one hundred images, thirty-four recordings and sixty-four texts for ten Iberian species. They come from Wikimedia, Xeno-canto, Wikipedia and GBIF. The sources do not cover every species equally. The lizard, for example, has no audio. We keep these gaps visible, and preserve source information so that users can check where each record came from.
 
-## 04. The EcoSentinel pipeline
+## 4. The EcoSentinel pipeline
 
-**Mario · 01:10–01:45 · 35 seconds**
+**Mario / 01:30-02:15 / 45 seconds**
 
 Cue: Follow the boundaries and the source references
 
-The orchestrator runs sixteen steps across four zones and finishes with reconciliation. Landing preserves originals. Formatted establishes file representations. Trusted makes quality decisions. Exploitation creates searchable vectors. The first three zones use S3-compatible storage in Docker; Chroma stores the vectors. Queries open a verified copy of that persistent index to protect the audited original from internal database writes. After data updates, we explicitly refresh the copy.
+The files pass through four zones. Landing preserves the originals, Formatted gives each type a common format, and Trusted checks quality and duplicates. Exploitation then creates search vectors. The first three zones use object storage, while Chroma stores the vectors on disk. Searches open a verified copy because Chroma can make internal writes when opened. We refresh this copy after data changes, without calculating embeddings again. The orchestrator connects all these stages in the order shown on the next slide.
 
-## 05. Hashes and embeddings
+## 5. The 16 steps in order
 
-**Mario · 01:45–02:25 · 40 seconds**
+**Mario / 02:15-02:55 / 40 seconds**
 
-Cue: A byte fingerprint and a similarity representation answer different questions
+Cue: Follow the six stage groups from top to bottom; do not read all names aloud
 
-We use two representations for different jobs. SHA-two-fifty-six fingerprints the file bytes. It helps verify integrity and build deterministic identities. An embedding represents features learned by a particular model, so nearby vectors can retrieve related content. Recompressing a photograph changes its bytes and therefore its hash, while its embedding may remain similar. That is a conceptual example, not a new measurement. Landing uses a hash prefix and filename for ingestion identity. Similarity search uses embeddings. A high similarity score does not establish an exact copy or confirm a species.
+These are the sixteen steps behind that diagram. We start by checking storage and creating any missing buckets. Then we ingest local files and verify their copies in Persistent. Three formatters and three validators handle images, audio and text. Five indexing steps build the collections, and the last step checks that accepted files and vector parts agree. Everything runs in sequence. A failure stops later steps, and a rerun checks what already completed. Optional acquisition adds three downloads after storage setup. We will now explain the decisions inside those stages.
 
-## 06. Landing identity and completion records
+## 6. Hashes and embeddings
 
-**Mario · 02:25–03:25 · 60 seconds**
+**Mario / 02:55-03:45 / 50 seconds**
 
-Cue: Technical reuse has explicit conditions
+Cue: Explain why identity comes before model inference
 
-Landing gives each ingestion a deterministic key: the first sixteen hexadecimal characters of SHA-two-fifty-six, followed by the original filename. Same bytes and filename produce the same key. Before uploading, we check whether that object already exists in Temporal. If Temporal is absent, a separate completion record points to its Persistent copy. We check that target and the source identity before skipping the upload. Promotion writes completion only after verifying the copied bytes. A missing target or conflicting identity produces an error. A renamed copy gets a different ingestion key, so Trusted handles content duplicates separately. The marker confirms Persistent promotion; later reconciliation checks the downstream state.
+Before we look inside Landing, there is an important distinction between hashes and embeddings. At ingestion, we need to check file identity. SHA-two-fifty-six reads the bytes once in small blocks, without decoding the media or loading a neural model. That makes the check cheap and predictable, although we have not measured a speed ratio. An embedding answers a later question: whether content is related. Saving a photograph again can change its hash while leaving its meaning almost unchanged. We therefore use hashes for identity and integrity, then embeddings for similarity.
 
-## 07. Landing: four identity cases
+## 7. Landing: file identity and verified copies
 
-**Mario · 03:25–04:10 · 45 seconds**
+**Mario / 03:45-04:40 / 55 seconds**
 
-Cue: Read each incoming photo against the already-seen photo; names are illustrative
+Cue: Copy, verify, then mark complete
 
-These four cases show what technical deduplication means. Assume the source metadata matches and the first file is already recorded. Same bytes and same filename reuse the existing key, so there is no new upload. Identical bytes under another name create a new key and enter Landing. Different bytes under the same name also enter: their hash changes, so the original is not overwritten. If both change, the file enters too. Landing prevents repeated technical ingestion. Trusted still checks content duplicates and perceptual similarity. A recompressed photograph can pass Landing even when it looks unchanged.
+Landing turns that identity into an object key: the first sixteen hexadecimal characters of the hash, followed by the filename. On a rerun, we first look for that object in Temporal and check its source information. If it has already left Temporal, a completion record points to its copy in Persistent. We check that the target exists before skipping it. The copying step verifies the bytes before writing this record, so a broken copy cannot look complete. This proves completion of Landing; Trusted makes its own decision later.
 
-## 08. Formatted choices for wildlife data
+## 8. Landing: four identity cases
 
-**Mario · 04:10–05:10 · 60 seconds**
+**Mario / 04:40-05:35 / 55 seconds**
 
-Cue: Explain what each choice preserves and what it costs
+Cue: The filename is part of the submitted-file identity
 
-For wildlife photographs, RGB JPEG gives us a compact, widely supported representation. Quality ninety-five prioritises visual fidelity. It remains lossy; PNG would preserve pixels and transparency instead. We keep dimensions and leave model cropping to Exploitation. Six real multiframe image sources required an explicit primary-frame policy. Audio becomes FLAC PCM sixteen: compressed PCM avoids another lossy audio encode, while preserving rate, channels and duration when possible. Higher-precision input can lose precision through quantisation. UTF-eight, consistent line endings and Unicode normalisation keep Spanish and English text readable across platforms. Text extraction loses layout. Persistent Landing keeps every complete original. Sambhav will explain the quality decisions.
+The filename in that key explains these four cases. Same bytes and same name reuse the existing record. Same bytes with a different name enter again because we preserve the identity of the submitted file, including its name. That costs some storage, but Trusted will check duplicate content later. Different bytes with the same name also enter, under a new hash, so they cannot overwrite the first version. When both change, we get a new record too. Landing handles simple identity checks before the more detailed quality work.
 
-## 09. Trusted: rejection or warning?
+## 9. Formatted choices for wildlife data
 
-**Sambhav · 05:10–06:00 · 50 seconds**
+**Mario / 05:35-06:50 / 75 seconds**
+
+Cue: Connect every format choice to wildlife data
+
+Once the originals are safe, Formatted gives each type a common representation. For photographs, JPEG at quality ninety-five balances detail and file size. It is usually efficient for photos, but still loses information, so we keep the original and its dimensions. MPO needs special handling because one file can contain several photographs. We use its first photograph and preserve the others upstream. For audio, a faint call may sit behind rain, wind or other animals. FLAC avoids another lossy encoding step, while keeping background sound and quiet sections. Our sixteen-bit conversion can still reduce precision from richer sources. Finally, UTF-eight preserves Spanish and English text. For JSON, we first try recognised content fields and only fall back to the longest string when none is found. With the formats consistent, Sambhav will explain the quality decisions.
+
+## 10. Trusted: rejection or warning?
+
+**Sambhav / 06:50-07:45 / 55 seconds**
 
 Cue: Separate hard failures from useful ecological variation
 
-Our Trusted policy separates rejection from warnings. Images must decode and respect a twenty-megabyte, forty-megapixel budget, with at least one hundred and twenty-eight pixels per side. Pixel count matters because compressed size alone does not bound decoding cost. Audio has a two-hundred-megabyte ceiling and text has four. These are operational budgets. Exact hashes detect identical image bytes; perceptual candidates need structural and colour confirmation. Watermark signals and quiet recordings remain visible warnings. Quiet intervals can carry ecological meaning. A later rejection or storage error preserves an earlier accepted object and records the reason for review.
+Trusted decides whether a file is usable and which issues need a warning. Images must decode, stay below twenty megabytes and forty megapixels, and have at least one hundred and twenty-eight pixels on each side. We check pixels as well as bytes because a small compressed file can still need a lot of memory. Audio has a two-hundred-megabyte cap and text has four. These are practical budgets for our local system, rather than scientifically optimal thresholds. Hashes find exact duplicates. For similar images, a perceptual hash finds candidates, then we check structure and colour. Darkness, possible watermarks and quiet audio usually remain warnings, preserving material that may still be useful.
 
-## 10. Quality decisions leave an audit trail
+## 11. Quality decisions leave an audit trail
 
-**Sambhav · 06:00–06:20 · 20 seconds**
+**Sambhav / 07:45-08:20 / 35 seconds**
 
 Cue: Show the actual report and distinguish completeness from truth
 
-Each asset receives a quality manifest. We aggregate those records into HTML, CSV, JSON and plots. This is our recorded image report: all one hundred images remain, including thirty-two possible watermark warnings. Complete provenance fields establish traceability, not biological correctness.
+Those decisions need to be visible, so every checked asset gets a JSON quality record. We use the records to create an HTML report, CSV measurements and plots. Here is the actual image report. All one hundred reference images remain accepted, including thirty-two possible watermark warnings. Source fields are complete, which helps us trace the records. It does not prove that every source label is correct. The charts make the effects of our decisions easier to inspect.
 
-## 11. Did filtering change species representation?
+## 12. Did filtering change species representation?
 
-**Sambhav · 06:20–06:40 · 20 seconds**
+**Sambhav / 08:20-08:50 / 30 seconds**
 
 Cue: Before and after measure the effect of our policy
 
-We compare species distributions before and after Trusted because filtering could alter what users retrieve. Here, both series remain at ten images per species and the measured distribution shift is zero. This describes our small curated sample, not the distribution of wildlife populations.
+This chart compares species counts before and after Trusted. If a rule removed many images from one species, we would see that imbalance here. In our reference batch, both bars show ten images per species and the measured distribution change is zero. That tells us about the effect of our filtering on this selected dataset, rather than about animal populations in nature.
 
-## 12. Quiet intervals remain in the evidence
+## 13. Quiet intervals remain in the evidence
 
-**Sambhav · 06:40–07:00 · 20 seconds**
+**Sambhav / 08:50-09:15 / 25 seconds**
 
 Cue: The warning has an explicit consequence
 
-Nine recordings have a high proportion of low-energy windows. We retain all thirty-four recordings, so the distributions before and after match. Removing quiet sections could erase distant calls or environmental context. The warning tells a reviewer what to inspect without rewriting the recording.
+Audio shows why a warning can be more useful than rejection. Nine recordings contain many quiet intervals, yet a distant animal call can itself be quiet. Removing those sections could also lose background context. We therefore keep all thirty-four recordings and record the warning for inspection. Once these quality decisions are recorded, the accepted material is ready for indexing.
 
-## 13. Five collections, 6,021 embeddings
+## 14. Five collections, 6,021 embeddings
 
-**Sambhav · 07:00–07:35 · 35 seconds**
+**Sambhav / 09:15-09:55 / 40 seconds**
 
 Cue: Completeness is more than a row count
 
-Long recordings and documents produce several segments, which explains how one hundred and ninety-eight assets generate six thousand and twenty-one vectors. Each vector retains its source, asset identity, segment position and model-policy contract. Compatible reruns check exact segment coverage before reusing results. Counts alone are insufficient: a duplicated segment could hide a missing one. This contract lets us detect and recover incomplete publication without recomputing every embedding.
+A long recording or document needs several searchable segments. This is why one hundred and ninety-eight files produce six thousand and twenty-one embeddings across five collections. Each vector keeps its file identity, source and segment position. On a rerun, we check compatibility and the complete set of expected segments. Counting rows alone could miss a missing segment hidden by a duplicate. These checks let us repair incomplete work without calculating every vector again.
 
-## 14. Three encoders, three relationships
+## 15. Three encoders, three relationships
 
-**Sambhav · 07:35–08:25 · 50 seconds**
+**Sambhav / 09:55-10:50 / 55 seconds**
 
 Cue: Model choice follows the retrieval relationship
 
-For an image and a sentence, CLIP uses separate encoders trained to place related content in one shared space. CLAP does the same for sounds and descriptions, without treating animal calls as speech. Multilingual E-five small retrieves passages in Spanish and English. These pretrained models support our CPU deployment. Within each compatible space, we can compare vectors. Across different models, we combine their result positions using reciprocal rank fusion, rather than compare raw scores. Equal vector dimensions do not make spaces interchangeable. English descriptions generally suit CLAP better. We have not established which model is best on a labelled wildlife benchmark.
+The five collections use three model families because the relationships are different. CLIP connects photographs with descriptions, while CLAP connects sounds with descriptions, including animal calls. Multilingual E-five small handles detailed Spanish and English text retrieval. All three run on CPU. Their outputs stay in compatible spaces: CLIP and CLAP may both produce five-hundred-and-twelve numbers, but the coordinates mean different things. When searching across models, we combine result positions rather than comparing raw scores. Inside each space, we use cosine similarity.
 
-## 15. Similarity is an angle, not a probability
+## 16. Similarity is an angle, not a probability
 
-**Sambhav · 08:25–09:10 · 45 seconds**
+**Sambhav / 10:50-11:40 / 50 seconds**
 
 Cue: The two-dimensional calculation illustrates the actual normalised-vector rule
 
-Cosine similarity measures the angle between two vectors. We divide their dot product by their lengths. Our vectors are normalised, so the calculation becomes a dot product. In this two-dimensional example, the query is one, zero. The first candidate scores zero point nine six, the second zero point six, and the third zero. The first is most aligned; zero means perpendicular. Our actual vectors have hundreds of dimensions. Higher scores mean closer representations within that space. There is no universal cut-off for relevant wildlife, and zero point nine six is not ninety-six percent confidence.
+Cosine compares the directions of two vectors. We divide their dot product by their lengths. Since we normalise our vectors to unit length, the calculation becomes just the dot product. In this two-dimensional example, the candidates score zero point nine six, zero point six and zero. The first points closest to the query, while the last is perpendicular. Our real vectors have hundreds of components, but the same rule applies. The score describes closeness in that model space. It does not give a probability that the animals belong to the same species.
 
-## 16. Finding neighbours: HNSW in Chroma
+## 17. Finding neighbours: HNSW in Chroma
 
-**Sambhav · 09:10–10:00 · 50 seconds**
+**Sambhav / 11:40-12:40 / 60 seconds**
 
 Cue: Cosine scores a pair; HNSW selects neighbours through a layered graph
 
-The lecture distinguishes a similarity measure from a search algorithm. Cosine scores two vectors. To find neighbours among many vectors, our Chroma collections configure H-N-S-W: Hierarchical Navigable Small World. Its sparse upper layers make longer hops; denser lower layers refine the candidate neighbourhood. This is approximate search, so it can miss a true nearest neighbour. We use the database implementation and have not measured its recall on labelled wildlife queries. Our code also has an exact path for at most sixty-four eligible vectors. It compares all of them directly, avoiding a dependency on a persisted graph for tiny or newly created collections.
+Cosine scores a pair of vectors, but we also need a way to find good candidates. Chroma uses H-N-S-W, a graph with several levels. It makes large jumps at the upper levels and explores nearby candidates below. This saves a full scan for larger sets, but the search is approximate. When sixty-four or fewer vectors remain after filtering, our code compares every vector instead. We chose sixty-four as a small, bounded fallback for tiny collections that may lack a saved graph. It is a practical cap, not an optimum established by comparing thirty-two, sixty-four and one hundred and twenty-eight.
 
-## 17. Task 1: a real image query
+## 18. Task 1: a real image query
 
-**Sambhav · 10:00–10:40 · 40 seconds**
+**Sambhav / 12:40-13:20 / 40 seconds**
 
 Cue: Point out both the useful matches and the failure
 
-This is a recorded image query using real CLIP embeddings. We exclude the entire reference asset and group segments by file. The slide shows matches at ranks one and three from five returned assets. Four catalogue labels are lynx and one is wolf; a cropped variant also survives. These results demonstrate retrieval and expose the limits of visual similarity. A high score does not verify species identity or prove that every near duplicate has been removed.
+Here is what that search produces in Task one using real CLIP embeddings. We exclude the reference file and return each other file once. Four of these five results have a lynx label, while one has a wolf label. A cropped version also remains. The example shows useful visual matches, but also why we should not treat similarity as species identification or assume that every near duplicate has disappeared.
 
-## 18. Task 2: one query, images and text
+## 19. Task 2: one query, images and text
 
-**Sambhav · 10:40–11:15 · 35 seconds**
+**Sambhav / 13:20-14:05 / 45 seconds**
 
 Cue: One query returns different modalities
 
-This text query returned four images and four texts. The illustrated image scores zero point three three two. It is a useful candidate despite scoring much lower than our image-to-image example. Query type changes the score distribution; one threshold would mislead. A diversity policy prevents text passages dominating the display. Users choose top-k from one to fifty; eight is the default, counting distinct assets. Wassim will show how retrieved evidence supports generation.
+Task two uses an aligned space to connect different types of files. Here, one text query returns four images and four texts. The displayed image scores zero point three three two. It can still be useful even though that score is lower than the image-to-image example, because query types have different score ranges. We reserve room for both modalities so that text chunks do not fill the list. Users can request one to fifty distinct files, with eight as the default. Wassim will now show how retrieved material supports a generated answer.
 
-## 19. Task 3: answer from retrieved evidence
+## 20. Task 3: answer from retrieved evidence
 
-**Wassim · 11:15–12:05 · 50 seconds**
+**Wassim / 14:05-15:00 / 55 seconds**
 
-Cue: Retrieval, generation and post-validation remain separate
+Cue: Same preparation in memory, no stored query
 
-Task three retrieves evidence before asking Qwen to generate an answer. For image questions, CLIP retrieves visual candidates and BLIP supplies an unverified caption. E-five retrieves relevant text; we pass bounded evidence units with explicit identifiers to Qwen. The three-billion-parameter quantised model runs locally on CPU. It receives text rather than image pixels, which controls memory but loses visual detail. After generation, we validate allowed source identifiers and literal quotations. This does not prove every interpretation is correct. We distinguish supported answers, partial answers and abstention from technical failures such as timeouts.
+Task three retrieves evidence before asking Qwen to answer. An uploaded image first receives the shared JPEG conversion in memory, without being stored. Quality issues produce warnings, while invalid files and resource limits stop the request. We reuse a stored Trusted image unchanged. CLIP then finds visual candidates, BLIP produces an automatic caption, and E-five retrieves text evidence. Qwen receives that selected text and its source identifiers, rather than image pixels. We check the returned quotations and references, while recognising that a correct quotation does not guarantee a correct interpretation.
 
-## 20. The frog case: evidence and uncertainty
+## 21. The frog case: evidence and uncertainty
 
-**Wassim · 12:05–12:40 · 35 seconds**
+**Wassim / 15:00-15:40 / 40 seconds**
 
 Cue: A candidate remains a hypothesis
 
-The recorded frog case answered habitat and diet using source excerpts. The interface exposes both the candidate species and the quotations. We keep the photographic identification uncertain. A separate complete-genome request produced an abstention because the required evidence was absent. These examples test the behaviour of the full model pipeline. They are qualitative cases, not a biological accuracy benchmark. We use the recording here because CPU generation can take minutes.
+This recorded frog example shows that distinction. The answer describes habitat and diet using source quotations, while the candidate species remains a hypothesis about the photograph. When we asked for the complete genome instead, the system declined because the evidence was missing. These cases show how the model pipeline behaves, rather than measuring general accuracy. They were recorded before the query-preparation update. We use the saved examples in the talk because a fresh CPU response can take minutes.
 
-## 21. The second run adds zero new vectors
+## 22. The second run adds zero new vectors
 
-**Wassim · 12:40–13:15 · 35 seconds**
+**Wassim / 15:40-16:20 / 40 seconds**
 
 Cue: The full CLI has been exercised twice
 
-We also tested the complete command-line pipeline with isolated storage and real CPU models. Three synthetic assets produced seven vectors on the first run. The second completed all sixteen steps with zero new vectors. Reconciliation checked the resulting state. This demonstrates compatible reuse across the zones. The image is noise and the audio is a tone, so this execution test does not measure wildlife relevance.
+Useful answers are only one part of the project. We also need a pipeline that can run again safely. In an earlier isolated CPU demonstration, three synthetic files produced seven vectors on the first run. The second run completed all sixteen steps and added zero new vectors. The final check confirmed that the stored files and vector parts agreed. The image was noise and the audio was a tone, so this tests repeat execution, rather than wildlife relevance.
 
-## 22. How we tested the pipeline
+## 23. How we tested the pipeline
 
-**Wassim · 13:15–14:05 · 50 seconds**
+**Wassim / 16:20-17:15 / 55 seconds**
 
-Cue: Name the failure and the state we assert afterwards
+Cue: Current offline evidence versus earlier native runs
 
-Our validation has several layers. Three hundred and sixty-four offline tests use generated inputs to check contracts and failure paths. The isolated integration test runs real zone code with S3 and Chroma twice, using deterministic encoders. Separate native CPU runs check the actual model path. We inject copy mismatches, failed completion records and incomplete vector publication, then verify that retries preserve accepted data and recover missing work. Search tests check grouping, filters and exclusion of the reference. The new browser check follows top-k through real HTTP requests. The tests assert resulting state, not simply that a command returned successfully.
+We test failure cases as well as successful runs. The current offline suite passes four hundred and sixty-nine tests. The latest additions check conflicting source records, missing copies, failed storage requests and incomplete vector sets. They verify that existing data stays intact. Query tests also compare prepared bytes with the actual Formatted output and check limits before conversion. Earlier integration and CPU runs provide separate evidence for real storage and models. Offline coverage is seventy-two point three seven percent of measured statements. We use it to find gaps, while the assertions tell us whether the expected behaviour holds.
 
-## 23. An input can fail before it reaches storage
+## 24. An input can fail before it reaches storage
 
-**Wassim · 14:05–14:40 · 35 seconds**
+**Wassim / 17:15-18:00 / 45 seconds**
 
 Cue: The executable header is harmless test data
 
-Here, a file called lynx dot jpg contains a harmless Windows executable header. Our Security Gate blocks it before hashing or upload; we never execute it. Other generated cases cover corrupt files, empty inputs, archive expansion and resource limits. A controlled watermark signal verifies the opposite outcome: retain the image and record a warning. Combined statement coverage is seventy-one point eight two percent. It measures code exercised, not retrieval accuracy. This screening does not replace antivirus.
+One concrete failure case is this file called lynx dot jpg, containing a harmless Windows executable header. The Security Gate blocks it before hashing or upload, and the test never executes it. Other cases cover corrupt files, empty inputs and oversized archives. Compare that with a possible watermark: we keep the image and warn the user because it may still contain useful wildlife information. These different outcomes reflect the purpose of each rule. The gate checks inputs; it does not replace antivirus.
 
-## 24. A query with a traceable answer
+## 25. A query with a traceable answer
 
-**Wassim · 14:40–15:00 · 20 seconds**
+**Wassim / 18:00-18:25 / 25 seconds**
 
 Cue: Return to the opening question
 
-We began by asking where an answer should come from. EcoSentinel makes that route inspectable: source material, explicit transformations, quality decisions and retrieved evidence. Our next evaluation needs expert-labelled relevance and answers, including cases where the system abstains unnecessarily.
+We began with a photograph and asked where the answer should come from. EcoSentinel makes that route inspectable, from the original file and its processing decisions to the retrieved sources. Our next evaluation needs expert-labelled queries, including useful questions that the system fails to answer. Thank you.
 
 ## Questions after the talk
 
-**Does the Landing marker prove Trusted acceptance?** It verifies completed promotion to Persistent. Downstream quality manifests and reconciliation establish later state.
+**Does the Landing marker prove Trusted acceptance?** It records a verified copy in Persistent. Downstream quality manifests and reconciliation establish later state.
 
 **What if a copy has another name?** The content hash remains the same, but the Temporal key includes the filename. It is another technical ingest identity. Trusted applies modality-specific content deduplication.
 
@@ -222,10 +234,24 @@ We began by asking where an answer should come from. EcoSentinel makes that rout
 
 **How can different file types be compared?** Their modality-specific encoders must align into the same model space: image/text via CLIP, audio/text via CLAP. E5, CLIP and CLAP outputs cannot be compared directly with each other. Federated retrieval combines per-model ranks as sum(1/(60+rank)), at most one contribution per asset per list. For example, ranks 1 and 3 across two lists yield 1/61 + 1/63, about 0.03227. This fusion score is not cosine or a confidence probability.
 
-**What does 71.82% mean?** Executed Python statements across the recorded offline and integration runs. It is not biological or model accuracy.
+**Why not 100% coverage?** The current offline suite executes 3,897 of 5,385 measured statements (72.37%). This reveals untested code paths, not the percentage of working features. Some paths need separate integration or real-model checks, and others remain untested. We added 32 failure/boundary cases without shrinking the measured scope. Even 100% statement coverage would not prove every outcome was asserted or that retrieval is accurate.
 
 **What is automatic in GitHub?** The configured workflow runs offline checks on Windows/Linux and isolated integration on Linux after a push or pull request. Inspect the submitted commit; local success alone does not prove remote success.
 
 **Why can RAG abstain?** Evidence may be absent or insufficient. A technical timeout or invalid generation has a separate error state.
 
 **Why query a copy of Chroma?** The original already persists on disk. The extra verified copy protects it from database internal writes, at a disk/freshness cost. Refresh it explicitly after data updates.
+
+
+**Why FLAC for wildlife?** Faint calls may overlap with rain, wind or other animals. We avoid an extra lossy audio encode and keep quiet intervals and background context. FLAC preserves the selected PCM16 values; conversion from 24-bit or float can still lose precision. It cannot restore information already lost in MP3.
+
+**Is JPEG always smaller or equally accurate?** No. It is usually efficient for photographs, and quality 95 is our explicit compromise. PNG preserves pixels and alpha. We have no measured JPEG-versus-PNG retrieval benchmark.
+
+**Do queries pass through storage zones?** No. They reuse conversion and measurement functions in memory. Invalid files and resource-limit violations stop the query; quality issues return warnings. An already stored Trusted JPEG is reused unchanged. No uploaded file enters MinIO or the index.
+
+**Are the new results a fresh native-model benchmark?** No. The current 469-test offline run checks preparation and service contracts with generated data and model doubles. The real-model examples are separately dated earlier observations.
+
+
+**Why exactly 64 for exhaustive search?** It is a small engineering cap for the fallback, not a benchmarked optimum. At 512 dimensions, 64 float32 vectors contain 32,768 components (128 KiB of vector payload, excluding overhead). It avoids relying on a persisted graph for tiny segments. We scan at 64 or fewer eligible vectors after filters and use HNSW at 65 or more. Tests cover both sides, including filtered collections.
+
+**Which are the 16 steps?** Slide 5 lists them in order. Storage: connection, buckets. Landing: local ingest, verified Persistent copy. Formatted: images, audio, text. Trusted: images, audio, text. Index: images, text, audio, image/text, audio/text. Finally reconcile. Acquisition adds three downloads after storage setup, making 19. This is sequential execution, not parallel branches.

@@ -321,15 +321,6 @@ class SearchService:
                 elif modality == 'images':
                     prepared = prepare_query_image(data)
                 else:
-                    import soundfile as sf
-                    from io import BytesIO
-
-                    try:
-                        info = sf.info(BytesIO(data))
-                    except RuntimeError as exc:  # libsndfile cannot read this container
-                        raise ValueError('Unsupported or invalid audio file') from exc
-                    if info.duration > 30 or info.channels > 8:
-                        raise ValueError('Query audio is limited to 30 seconds / 8 channels')
                     prepared = prepare_query_audio(data)
                 if modality == 'images':
                     space = 'image_text' if mixed else 'images'
