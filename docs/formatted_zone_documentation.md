@@ -80,7 +80,7 @@ Admite texto plano y Markdown, HTML/XHTML/XML, JSON/JSONL/NDJSON, PDF con capa t
 | DOCX/ODT | Extraer párrafos y texto | Tablas y diseño complejo pueden aplanarse |
 | Texto plano | Detectar BOM/UTF-8 y usar fallback de codificación cuando procede | La detección heurística de codificación puede equivocarse |
 
-En JSON se prefieren campos conocidos próximos a la raíz para evitar que un subregistro desplace al contenido principal. Si no hay ninguno, el texto más largo es una alternativa práctica porque una descripción suele superar a un título o identificador. No es una propiedad garantizada de JSON ni una regla validada estadísticamente. El método y la ruta seleccionada se registran para poder revisar el resultado.
+En JSON se prefieren campos conocidos próximos a la raíz para evitar que un subregistro desplace al contenido principal. Solo si no aparecen esas claves se elige la cadena no vacía más larga, favoreciendo una descripción extensa frente a títulos o identificadores cortos. Esta alternativa permite procesar esquemas desconocidos. El método y la ruta seleccionada se registran para comprobar la extracción contra el JSON original conservado en Persistent. Así queda una regla reproducible y una forma concreta de revisar la elección cuando se incorpora una nueva fuente.
 
 La extracción **no es reversible**: suprime marcado o presentación, pero el original completo se conserva en Persistent. Formatted no elimina stopwords, no filtra por idioma, no detecta duplicados ni evalúa la veracidad del contenido.
 

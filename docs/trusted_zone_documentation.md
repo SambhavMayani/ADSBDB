@@ -99,7 +99,11 @@ El índice SQLite **no persiste entre ejecuciones**: por diseño se reconstruye 
 
 El uso de OCR mediante Tesseract es **opcional en el entorno de ejecución**; `pytesseract` por sí solo no instala el ejecutable. `advanced_ocr` o el detector ligero señalan una **posibilidad**, no validan la existencia de marcas de agua. Texto natural, sellos, vegetación o bordes pueden producir falsos positivos. No hemos medido precisión/recall del detector con etiquetas humanas.
 
-**Observación del informe de referencia:** 100 imágenes aceptadas; 14 con `monochrome_like` y 32 con `possible_watermark`, **ambas señales no excluyentes**. Estas alertas son útiles para revisión futura, no prueba de 32 fotografías con marca de agua real.
+La elección se hace al comenzar el lote seleccionado. Con **hasta 1.000 imágenes candidatas y Tesseract disponible**, se usa OCR para buscar texto superpuesto. Con más imágenes o sin Tesseract se usa el detector ligero. El límite de `watermark_advanced_max_items` controla el coste de invocar OCR por imagen y mantiene la ejecución portable; es un presupuesto configurable, no un umbral de calidad visual ni un óptimo medido. No se activa OCR según el resultado del detector ligero.
+
+Ambas rutas analizan una copia RGB orientada, reducida a un máximo de 1.280 × 1.280 píxeles, sin alterar el archivo. OCR usa un timeout de diez segundos y cuenta tokens de al menos tres caracteres con confianza ≥60. Si falla, registra `lightweight_fallback`. El método ligero aplica Canny y mide la mayor proporción de bordes en las cuatro esquinas, señalando `possible` a partir de 0,12. El manifiesto conserva método, estado y número/intensidad de señales. `watermark_reject: false` mantiene estas señales como avisos para revisión.
+
+**Observación del informe de referencia:** las 100 imágenes se evaluaron con `advanced_ocr` y se aceptaron; 14 tienen `monochrome_like` y 32 `possible_watermark`, **ambas señales no excluyentes**. Estas alertas son útiles para revisión futura, no prueba de 32 fotografías con marca de agua real.
 
 ## 4. Trusted Audio (v1)
 
@@ -196,11 +200,26 @@ Cada ejecución completa genera una **carpeta local nueva** con `quality_report.
 
 **Generadores:** `trusted_zone/reporting/generate_image_report.py` y `trusted_zone/reporting/generate_modality_report.py`. Leen los JSON existentes en `trusted-zone/_quality/<modality>/`, **no** vuelven a decodificar los medios para crear las gráficas.
 
-| Mod. | Gráficos/medidas | Precaución |
+### Qué aportan las métricas
+
+El HTML y sus gráficos permiten revisar distribuciones. `summary.json` facilita comparar resultados automáticamente y `metrics.csv` permite localizar los archivos que explican un valor extremo. Los manifiestos conservan el detalle de la decisión. No todas las medidas individuales tienen un gráfico o una media agregada.
+
+| Medida | Qué se calcula | Para qué sirve en EcoSentinel |
 |---|---|---|
-| Imagen | Resolución, tamaño, brillo, nitidez, aspecto; por especie/fuente; shift Jensen–Shannon; watermark/método | OCR no equivale a watermark real; señal monocromática puede ser fauna nocturna |
-| Audio | Duración, RMS y peak dBFS, clipping, baja energía, sample rate; canales y fuentes | No se ha normalizado nivel ni recortado; perfilado ≠ denoising |
-| Texto | Palabras, caracteres, TTR, alfanuméricos, tamaño; fuentes y candidatos de privacidad | TTR depende mucho de longitud; patrones no prueban PII |
+| Aceptación, motivos y avisos | Conteos sobre manifiestos evaluados y aceptados | Distinguir fallos técnicos, duplicados y observaciones conservadas con advertencias. |
+| Distribución por especie y fuente | Conteos antes/después; imágenes añaden retención y divergencia Jensen–Shannon en bits | Detectar si los filtros reducen especialmente una especie o proveedor. Con distribuciones no vacías, divergencia 0 significa proporciones iguales; se revisan también los conteos. |
+| Completitud de procedencia | Porcentaje con `source_name` conocido y `source_etag` presente | Comprobar que se dispone del vínculo técnico al origen, sin confundirlo con validación taxonómica o de licencias. |
+| Tamaño y tiempo | Bytes/MB medidos y segundos por activo; imágenes agregan tiempo y tasa de evaluación | Estimar almacenamiento y detectar entradas costosas. Son medidas de los registros evaluados, no una medición completa del pipeline o del disco. |
+| Imagen, geometría | Anchura, altura, megapíxeles y relación anchura/altura | Encontrar imágenes pequeñas, panorámicas y cargas de decodificación elevadas que el tamaño comprimido no refleja. |
+| Imagen, aspecto visual | Brillo medio en gris 0–255, varianza del Laplaciano y separación cromática respecto al gris en Lab, sobre una vista de 256 × 256 | Señalar oscuridad, poco detalle y aspecto monocromático para revisar capturas nocturnas o difíciles sin descartarlas automáticamente. Ruido y textura también influyen en la nitidez medida. |
+| Imagen, posibles marcas | Método OCR/bordes y estado; señales detalladas en el manifiesto | Localizar candidatos a revisión y saber qué detector produjo el aviso. La sección 3 explica la selección de método. |
+| Audio, estructura | Duración, frecuencia de muestreo y canales | Identificar grabaciones largas, prever segmentación y conocer la heterogeneidad que se conserva antes del modelo. |
+| Audio, niveles | RMS y pico en dBFS, porcentaje de muestras con amplitud absoluta ≥0,99 y desplazamiento DC absoluto | Localizar sonidos débiles, amplitudes cercanas al máximo digital y posibles problemas de captura. El silencio digital tiene nivel logarítmico no definido, almacenado como valor nulo. |
+| Audio, baja energía | Porcentaje de ventanas de 50 ms con RMS inferior a −50 dBFS | Identificar largos intervalos débiles o llamadas lejanas. Mide energía, no presencia de animales ni relación señal/ruido. |
+| Texto, extensión y repetición | Caracteres, palabras y TTR (`unique_word_ratio`), palabras distintas sin distinguir mayúsculas divididas por palabras totales | Contrastar descripciones breves con artículos largos y localizar repetición. Se interpreta TTR junto a longitud e idioma. |
+| Texto, estructura y privacidad | Proporción alfanumérica entre caracteres no blancos; conteos de patrones de email e IPv4 | Revisar posibles restos de exportación y contenido sensible sin incluir los valores privados coincidentes en el informe. |
+
+Audio y texto agregan media, mediana, mínimo, máximo y percentiles 10/90 para las variables seleccionadas por el generador, excluyendo valores ausentes. La mediana describe una entrada típica y los extremos revelan casos que pueden dominar memoria o duración. Imágenes muestran histogramas de resolución, tamaño, brillo, aspecto y nitidez. Audio muestra duración, RMS, pico, clipping, baja energía y sample rate. Texto muestra palabras, caracteres, TTR, proporción alfanumérica y tamaño. Las métricas complementan las reglas de aceptación; no se suman en una supuesta puntuación universal de calidad.
 
 Los gráficos **Formatted vs. Trusted** comparan los **evaluados** frente a los **aceptados**, no necesariamente cambios físicos en los archivos. En la ejecución de referencia se aceptaron todos los objetos y las barras coinciden; eso **no implica que los controles no se hayan ejecutado**. Los reportes de audio/texto incluyen estadísticas descriptivas; el de imágenes todavía admite mejoras visuales y revisión de falsos positivos.
 

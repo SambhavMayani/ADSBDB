@@ -943,5 +943,51 @@
       "docs/testing_and_validation.md": "d5a13471a3edf0e024794d88719ef7726e54021ed969ca85b75d05c00041d65f",
       "formatted_zone/format_images.py": "235ba0f1106f67aa1e5715e9e6b06c4f4412f6d7a95042cab62409d7c0d652de"
     }
+  },
+  "documentation_clarity_review": {
+    "date": "2026-11-04",
+    "scope": "Documentation only. Clarify five collections versus three trained spaces and four embedding checkpoints, conditional OCR, metric purposes, JSON extraction rationale and footnote sources. No new appendix.",
+    "validation": {
+      "physical_pages": 12,
+      "body_pages": 8,
+      "manual_pages": 2,
+      "cover_pages": 1,
+      "existing_appendix_pages": 1,
+      "unchanged_text_pages": [
+        1,
+        2,
+        3,
+        9,
+        10,
+        12
+      ],
+      "visually_reviewed_pages": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        11
+      ],
+      "overfull_boxes": 0,
+      "broken_local_links": []
+    },
+    "remote_ci": {
+      "run_id": 41820793368,
+      "head_sha": "d470f074226ebb64e9a3e9a3428ce69349aff1b0",
+      "conclusion": "success",
+      "scope": "Published baseline verified through GitHub API; this subsequent documentation revision remains local."
+    },
+    "tests": "No new executable changes. Test suite not rerun for this documentation-only revision; prior dated results remain in submission_review.",
+    "production_data": "No production S3 or Chroma clients opened, no model inference or downloads, no reference embeddings regenerated.",
+    "sha256": {
+      "docs/report/main.tex": "ed9c4c7dafa8aaf685f1da0ecbec28903364b0405c5c76cc5cb821c2e4589892",
+      "docs/exploitation_zone_documentation.md": "c115642012c709f16fa653175ef3cf6340d95afbab51a377a58c7a1b9444a3b2",
+      "docs/formatted_zone_documentation.md": "4e2675643c90a7dca485160bc2711f912fd8006983b1e5e13ac8bb1d78d03447",
+      "docs/trusted_zone_documentation.md": "ee7fa7a879f1fb2e3bdc350d6a4def9810641623b69519820cf272e7e72b6bbb",
+      "docs/decision_log.md": "8b1b40fe6cd67a5c60c00f344d86ef0840a3b2faed6d4445a841c236f3913ffb",
+      "docs/evidence/README.md": "bf51af518509ad02018acfa13400b946ab84a80918951a4d7ccdbc09ab6524d9",
+      "docs/ecosentinel_report.pdf": "df316666176102d7ff03aab47079034ead4d2ff1b1271cc3a4578f7f823dc2e5"
+    }
   }
 }

@@ -25,7 +25,7 @@ Quality summaries identify their report and evaluation scope. Synthetic fixtures
 
 ## Remote CI and reproduction
 
-[Actions run 40944329385](https://github.com/SambhavMayani/ADSBDB/actions/runs/40944329385) was checked on 4 November and passed for commit `2f91480` in Windows/Linux offline and Linux storage jobs. Local test success alone cannot establish remote success. Recheck the actual submitted commit after publishing changes.
+[Actions run 41820793368](https://github.com/SambhavMayani/ADSBDB/actions/runs/41820793368) was checked on 4 November and passed for commit `d470f07` in Windows/Linux offline and Linux storage jobs. The commit identifies the exact repository version tested, rather than the date of every later documentation edit. Recheck the submitted revision after publishing changes. Earlier run IDs remain in the historical JSON entries.
 
 Use the [user guide](../user_guide.md) for installation and the [validation guide](../testing_and_validation.md) for commands and expected results. Offline tests need no reference data. Exact reproduction of the 198 assets and 6,021 vectors requires the matching data/metadata handoff and pinned model cache.
 
