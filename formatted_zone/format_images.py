@@ -132,7 +132,7 @@ def convert_to_jpeg(raw_bytes):
     Convert an image to the canonical JPEG format.
 
     Preserves the original dimensions and EXIF orientation.
-    For MPO files, only the primary frame is converted.
+    For MPO files, only frame 0 is converted.
     """
     with Image.open(BytesIO(raw_bytes)) as source:
         source_format = source.format
@@ -141,7 +141,7 @@ def convert_to_jpeg(raw_bytes):
             raise ValueError(f'Unsupported image encoding: {source_format}')
 
         # MPO files may contain multiple images.
-        # Only the primary frame is used for the canonical JPEG.
+        # Keep one deterministic frame per source, without expanding the asset count.
         if source_format == 'MPO':
             source.seek(0)
 

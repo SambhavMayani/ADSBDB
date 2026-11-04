@@ -1,14 +1,14 @@
 # EcoSentinel testing and validation
 
-Current incremental validation review: **29 October 2026, Windows, Python 3.11.2, CPU**. Older storage/native acceptance results below retain their original scope. Commands below are for Git Bash at the repository root with the virtual environment active. [Selected evidence](evidence/README.md) is versioned; complete generated reports stay local and ignored. This page replaces the chronological development log.
+Current submission review: **4 November 2026, Windows, Python 3.11.2, CPU**. Older native acceptance results below retain their original scope. Commands below are for Git Bash at the repository root with the virtual environment active. [Selected evidence](evidence/README.md) is versioned; complete generated reports stay local and ignored. This page replaces the chronological development log.
 
 ## 1. Measured results
 
 | Check | Observed result | Local evidence |
 |---|---|---|
-| Current offline regression | **469 passed, 1 integration test deselected** | reports/validation/readability_review/offline.xml |
-| Isolated real S3 + Chroma integration | **1 passed, 364 deselected**, two pipeline passes | reports/validation/inputs_integration.xml |
-| Current offline statement coverage | **72.37%**, 3,897 / 5,385 statements | readability_review/coverage.xml |
+| Current offline regression | **469 passed, 1 integration test deselected** | reports/validation/submission_review/offline.xml |
+| Isolated real S3 + Chroma integration | **1 passed, 469 deselected**, two pipeline passes | reports/validation/submission_review/integration.xml |
+| Current offline statement coverage | **72.37%**, 3,897 / 5,385 statements | submission_review/coverage.xml |
 | Historical combined statement coverage | **71.82%**, 3,784 / 5,269 statements | inputs_coverage_combined.xml |
 | Real CPU CLI, recorded delivery smoke | **16/16 steps**, three synthetic assets, seven vectors | delivery_smoke_first.log |
 | Repeated real CPU CLI | **16/16 steps**, zero new vectors in all five spaces | delivery_smoke_repeat.log |
@@ -16,7 +16,11 @@ Current incremental validation review: **29 October 2026, Windows, Python 3.11.2
 | Original Chroma preservation | Same filenames, byte sizes and SHA-256; **6,021 vectors** | delivery_preservation.json; presentation_examples/retrieval_examples.json |
 | Original MinIO preservation | Same keys, sizes and ETags; **396 / 198 / 396 objects** | delivery_minio_preservation.json |
 
-Coverage measures executed statements, **not retrieval accuracy, biological correctness or the percentage of requirements completed**. Offline and combined figures have different execution scopes. Real-model CLI runs are outside pytest and are not added to coverage. The current `readability_review` is recorded separately in [final_validation.json](evidence/final_validation.json). Native model inference, storage integration and browser visual acceptance were not rerun for this revision. The 469 tests include the query cases and 32 additional storage/search boundary cases and execute local HTTP handlers; this does not establish retrieval accuracy.
+Coverage measures executed statements, **not retrieval accuracy, biological correctness or the percentage of requirements completed**. Offline and combined figures have different execution scopes. Real-model CLI runs are outside pytest and are not added to coverage. The current `submission_review` is recorded separately in [final_validation.json](evidence/final_validation.json). Native model inference and browser visual acceptance were not rerun. The offline suite includes query preparation, storage/search boundaries and local HTTP handlers, while the separate integration run uses real S3/Chroma with deterministic encoders. Neither establishes biological retrieval accuracy.
+
+The final review also passes `pip check`, Ruff and formatting of all 79 Python files, and verifies the 16-step default and 19-step acquisition plans without running the production pipeline. The existing GitHub Actions run [40944329385](https://github.com/SambhavMayani/ADSBDB/actions/runs/40944329385) succeeds for `2f91480` in Windows/Linux offline and Linux storage jobs. Later commits must be checked separately. No reference MinIO or Chroma client was opened for this review.
+
+An additional clean export of the 133 tracked deliverable files also passes **469 tests, with one integration test deselected**. It contains no `.env`, reference data, indexes or virtual environment, and `HF_HOME` points to an empty cache. The command uses the already installed Python environment, so this checks independence from local project data rather than claiming another fresh dependency installation. Its JUnit record is `reports/validation/submission_review/clean_export_offline.xml`. The only Python source edit in this review clarifies the MPO frame-0 comment/docstring, with no change to executable statements.
 
 ### Coverage improvement without changing the pipeline
 

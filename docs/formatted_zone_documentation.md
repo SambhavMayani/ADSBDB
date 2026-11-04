@@ -44,13 +44,15 @@ Los datos se organizan bajo `images/<species_id>/`, `audio/<species_id>/` y `tex
 | Orientación | No rotar píxeles por EXIF; preservar EXIF cuando existe | Algunos visores interpretan orientación de modo distinto |
 | MPO | Extraer solo frame 0 | Mantiene relación 1:1 entre activo Persistent y Formatted |
 
-**Caso real MPO:** cuatro fuentes de `aquila_chrysaetos` con dos frames y dos de `canis_lupus` con tres; **seis activos** generan seis JPEG principales. Sus ocho frames adicionales no se exportan a Formatted, pero están conservados en los originales Persistent. La primera ejecución de imágenes requirió esta corrección; tras implementarla se comprobaron **100 JPEG/RGB válidos** (10 por especie).
+**Caso real MPO:** cuatro fuentes de `aquila_chrysaetos` con dos frames y dos de `canis_lupus` con tres; **seis activos** generan seis JPEG a partir del frame 0. Sus ocho frames adicionales no se exportan a Formatted, pero están conservados en los originales Persistent. La primera ejecución de imágenes requirió esta corrección; tras implementarla se comprobaron **100 JPEG/RGB válidos** (10 por especie).
+
+Elegimos frame 0 como vista única y determinista, sin afirmar que sea siempre la imagen representativa del MPO. Las vistas adicionales pueden corresponder a una misma escena, por lo que indexarlas todas podría sobrerrepresentarla. No se ha medido que esos ocho frames sean duplicados. Mantener un activo por archivo conserva la relación de procedencia y atribución existente. Exportar más vistas sería posible, pero requeriría identificadores derivados y enlaces explícitos al original y su licencia, no inventar metadatos.
 
 Formatted **no** valora desenfoque, exposición, marcas de agua, duplicados ni adecuación de la especie. Eso pertenece a Trusted o a una revisión semántica posterior.
 
 ## 3. Audio: FLAC PCM16
 
-**Por qué para grabaciones de fauna:** una llamada débil puede convivir con lluvia, viento, insectos u otras especies. Evitamos añadir otra compresión perceptual, como un nuevo MP3/AAC, que podría descartar información acústica. FLAC comprime sin pérdida los valores PCM16 seleccionados, con menor almacenamiento que PCM sin comprimir en muchos casos; el tamaño depende del ruido y del contenido. Conservamos fondo y pausas, sin denoising ni recortes, porque pueden contener llamadas lejanas o contexto ecológico. Esto es una decisión de preservación, no una mejora de CLAP medida. Convertir audio de 24 bits/float a PCM16 sí puede perder precisión, y FLAC no recupera información perdida en un MP3 anterior. Véanse [FLAC Features](https://www.xiph.org/flac/features.html) y el contrato del conversor.
+**Por qué para grabaciones de fauna:** al escuchar las grabaciones, el grupo observó que lluvia, viento y otros animales se superponen con frecuencia a la llamada de interés. Es una observación cualitativa, no una medición etiquetada. Evitamos añadir otra compresión perceptual, como un nuevo MP3/AAC, que podría descartar información acústica. FLAC comprime sin pérdida los valores PCM16 seleccionados, con menor almacenamiento que PCM sin comprimir en muchos casos; el tamaño depende del ruido y del contenido. Conservamos fondo y pausas, sin denoising ni recortes, porque pueden contener llamadas lejanas o contexto ecológico. Esto es una decisión de preservación, no una mejora de CLAP medida. Convertir audio de 24 bits/float a PCM16 sí puede perder precisión, y FLAC no recupera información perdida en un MP3 anterior. Véanse [FLAC Features](https://www.xiph.org/flac/features.html) y el contrato del conversor.
 
 
 **Script:** `formatted_zone/format_audio.py`.
@@ -77,6 +79,8 @@ Admite texto plano y Markdown, HTML/XHTML/XML, JSON/JSONL/NDJSON, PDF con capa t
 | PDF | `pypdf` sobre capa de texto disponible | No ejecuta OCR sobre PDFs escaneados |
 | DOCX/ODT | Extraer párrafos y texto | Tablas y diseño complejo pueden aplanarse |
 | Texto plano | Detectar BOM/UTF-8 y usar fallback de codificación cuando procede | La detección heurística de codificación puede equivocarse |
+
+En JSON se prefieren campos conocidos próximos a la raíz para evitar que un subregistro desplace al contenido principal. Si no hay ninguno, el texto más largo es una alternativa práctica porque una descripción suele superar a un título o identificador. No es una propiedad garantizada de JSON ni una regla validada estadísticamente. El método y la ruta seleccionada se registran para poder revisar el resultado.
 
 La extracción **no es reversible**: suprime marcado o presentación, pero el original completo se conserva en Persistent. Formatted no elimina stopwords, no filtra por idioma, no detecta duplicados ni evalúa la veracidad del contenido.
 
@@ -122,6 +126,6 @@ Para audio/texto, `--species <species_id>` permite limitar pruebas por especie; 
 
 **Evidencia más reciente de integración:** 100 imágenes JPEG RGB, 34 audios FLAC PCM16 y 64 textos TXT están disponibles en Formatted y han sido leídos y aceptados por los scripts Trusted correspondientes. Para los scripts de audio/texto existen asimismo pruebas de regresión offline previas. Esta validación de integración **no demuestra** perfección taxonómica, conformidad legal de todas las licencias, fidelidad al raw a nivel de píxel/señal, ni exactitud semántica del contenido.
 
-**Compromisos conocidos:** JPEG y extracción textual pueden modificar el contenido; MPO solo exporta el frame primario; PCM16 puede perder precisión de fuentes de más resolución; el primer stream de audio descarta extras del contenedor; las comprobaciones de destinos existentes no equivalen a recalcular un hash completo en cada reejecución. Todos ellos son compromisos documentados, no fallos ocultos.
+**Compromisos conocidos:** JPEG y extracción textual pueden modificar el contenido; MPO solo exporta el frame 0; PCM16 puede perder precisión de fuentes de más resolución; el primer stream de audio descarta extras del contenedor; las comprobaciones de destinos existentes no equivalen a recalcular un hash completo en cada reejecución. Todos ellos son compromisos documentados, no fallos ocultos.
 
 **Continuación:** [Landing](landing_zone_documentation.md) · [Trusted](trusted_zone_documentation.md) · [Decisiones](decision_log.md).

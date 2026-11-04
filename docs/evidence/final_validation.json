@@ -744,5 +744,204 @@
       "docs/report/main.tex": "e8a1317f145117fa71d48bc64e3a93606be34fd931e49b6afcc645b7ce3c8384",
       "tests/test_storage_boundaries.py": "6f0718599dfa41fc022a53ed011d2529b064d4ded25f0a7e894f7ed2998b6003"
     }
+  },
+  "report_rationale_review": {
+    "date_local": "2026-11-04",
+    "base_commit": "2f9148076e59aed8dd1778036845bed0c7a19bfc",
+    "scope": "Documentation only. Plain-English group rationale, verified query routes and a separate one-page appendix. No application, test or presentation changes.",
+    "report": {
+      "source": "docs/report/main.tex",
+      "output": "docs/ecosentinel_report.pdf",
+      "engine": "Tectonic 0.17.0 / XeTeX",
+      "compile": "success",
+      "content_pages": 8,
+      "manual_pages": 2,
+      "cover_pages": 1,
+      "appendix_pages": 1,
+      "physical_pages": 12,
+      "body_font_points": 10.5,
+      "appendix_font_points": 9.5,
+      "overfull_boxes": 0,
+      "visual_review": "All 12 final pages rendered and inspected, including revised diagram spacing. Body numbering 1-8 and appendix A1 checked."
+    },
+    "checks": {
+      "numbering_checked": true,
+      "overfull_boxes": 0,
+      "bold_commands": 0,
+      "python_files_parsed": 79,
+      "broken_local_links": [],
+      "secret_match_count": 0,
+      "protected_paths_in_git_candidates": [],
+      "application_code_changed": false
+    },
+    "claims_cross_checked": [
+      "Landing identity and completion verification",
+      "Security Gate checks before expensive processing",
+      "Formatted frame-0 JPEG, FLAC PCM16 and JSON extraction",
+      "Trusted warning and report policies",
+      "Pinned CLIP processor uses 224 by 224 resize/centre crop",
+      "Search spaces, exact/HNSW 64/65 boundary and rank fusion",
+      "RAG caption/domain gate before retrieval, then bounded evidence and Qwen",
+      "Query-copy reads versus accepted Trusted media reads"
+    ],
+    "references": {
+      "clip_processor": "https://huggingface.co/sentence-transformers/clip-ViT-B-32/blob/327ab6726d33c0e22f920c83f2ff9e4bd38ca37f/0_CLIPModel/preprocessor_config.json",
+      "vl_jepa": "https://arxiv.org/abs/2512.10942v2",
+      "mpo_note": "Frame 0 is documented as our deterministic choice, without claiming every MPO makes it the representative image or every extra frame is a duplicate.",
+      "future_work_note": "VL-JEPA decoding-operation savings belong to its published experiment, not measurements of this system."
+    },
+    "remote_ci_verified": {
+      "checked_on": "2026-11-04",
+      "run_id": 40944329385,
+      "head_sha": "2f9148076e59aed8dd1778036845bed0c7a19bfc",
+      "url": "https://github.com/SambhavMayani/ADSBDB/actions/runs/40944329385",
+      "conclusion": "success",
+      "jobs": {
+        "offline (windows-latest)": "success",
+        "offline (ubuntu-latest)": "success",
+        "storage-integration": "success"
+      },
+      "scope": "Existing code commit only. These documentation changes have not been pushed."
+    },
+    "tests_rerun": false,
+    "test_result_reference": "readability_review, dated 2026-10-29, remains the latest local test execution record (469 passed, 72.37% statement coverage).",
+    "production_stores_accessed": false,
+    "models_loaded_or_downloaded": false,
+    "sha256": {
+      "docs/report/main.tex": "d316269b409438fc47afb6ccf43ce94ebf9c3a60d5b26edb36cf4cf3b6e6036a",
+      "docs/ecosentinel_report.pdf": "d24217432fee1255529520c33bd3288c2b20bca2eb660fc4292f4cf595d11198"
+    },
+    "local_checks": "reports/validation/final_report_revision/checks.json"
+  },
+  "submission_review": {
+    "date_local": "2026-11-04",
+    "base_commit": "2f9148076e59aed8dd1778036845bed0c7a19bfc",
+    "official_statement": {
+      "filename": "P1 - Multimodal Data Management.pdf",
+      "pages": 15,
+      "sha256": "3b2b10f678e37af4e12ceb4fe1c843c8789961473326283804fe6440253a944a",
+      "mapping": "docs/p1_requirements.md",
+      "constraints_reviewed": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "assessment": "No missing mandatory functionality identified within the reviewed scope. Final publication, remote CI for that revision and assessor access remain delivery steps."
+    },
+    "changes": "Clarified report, requirement mapping and validation records; consolidated evidence index. Only Python change is the MPO frame-0 comment/docstring, with executable AST unchanged.",
+    "offline": {
+      "tests": 469,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 83.276,
+      "deselected": 1,
+      "statement_coverage_percent": 72.37,
+      "lines_covered": 3897,
+      "lines_valid": 5385
+    },
+    "integration": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 18.799,
+      "deselected": 469,
+      "endpoint": "http://127.0.0.1:19000",
+      "scope": "Existing isolated ecosentinel-tests service. Real S3/Chroma, deterministic encoders, temporary UUID buckets removed by fixture, two 16-step passes and no new encoder calls on repeat."
+    },
+    "clean_export": {
+      "tests": 469,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 42.257,
+      "deselected": 1,
+      "files": 133,
+      "scope": "Working-tree deliverable files only, no .env/data/index/venv and empty HF_HOME. Reused installed Python dependencies, not a new installation. Initial test-launch directory error was corrected before this run."
+    },
+    "checks": {
+      "python_files_parsed": 79,
+      "broken_local_links": [],
+      "secret_match_count": 0,
+      "secret_scan_includes_pdf_and_pptx_xml": true,
+      "protected_paths_tracked": [],
+      "executable_ast_unchanged": true,
+      "report_pages": 12,
+      "overfull_boxes": 0,
+      "unchanged_report_page_renders": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12
+      ],
+      "manually_reviewed_updated_page": 11,
+      "tracked_deliverable_files": 133,
+      "requirements_files": 1,
+      "pip_check": "passed",
+      "ruff": "passed",
+      "ruff_format": "79 files already formatted",
+      "plans": [
+        16,
+        19
+      ]
+    },
+    "report": {
+      "physical_pages": 12,
+      "content_pages": 8,
+      "manual_pages": 2,
+      "cover_pages": 1,
+      "appendix_pages": 1,
+      "engine": "Tectonic 0.17.0",
+      "compile": "success",
+      "page_limit": "Official statement specifies eight pages excluding instructions. Current ten non-manual pages use the extension to ten reported by the authors, not an assumed appendix exemption."
+    },
+    "remote_ci": {
+      "run_id": 40944329385,
+      "head_sha": "2f9148076e59aed8dd1778036845bed0c7a19bfc",
+      "conclusion": "success",
+      "jobs": [
+        "offline (windows-latest)",
+        "offline (ubuntu-latest)",
+        "storage-integration"
+      ],
+      "scope": "Existing commit verified through GitHub API. Current local revision has not been pushed."
+    },
+    "not_rerun": [
+      "native model inference",
+      "production pipeline",
+      "reference storage recount",
+      "browser visual acceptance",
+      "PowerPoint acceptance"
+    ],
+    "production_data": "No production S3 or Chroma client opened, no model downloads and no reference embeddings regenerated.",
+    "local_evidence_directory": "reports/validation/submission_review/",
+    "sha256": {
+      "docs/report/main.tex": "144dc91d95dfa394032d0277b18936b09320f913cac2ebf18b389fbef5f9d2b9",
+      "docs/ecosentinel_report.pdf": "682b9d395946a63bab8c48fc2776bba63ad43a857410ef66d2a84953587229b7",
+      "docs/p1_requirements.md": "82da45ec5c43162a89908bee2e4b5f25b20cf43e48859c564ef0c5d7480f661d",
+      "docs/testing_and_validation.md": "d5a13471a3edf0e024794d88719ef7726e54021ed969ca85b75d05c00041d65f",
+      "formatted_zone/format_images.py": "235ba0f1106f67aa1e5715e9e6b06c4f4412f6d7a95042cab62409d7c0d652de"
+    }
   }
 }

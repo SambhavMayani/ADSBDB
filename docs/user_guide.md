@@ -13,7 +13,7 @@ Choose the route matching what you actually received:
 | Already prepared, matching S3 state and Chroma index | Prepare local credentials/models, verify with reconciliation, then follow section 4. The index alone does not provide the source media. |
 | Existing installation with its query copy | Start storage and the web; reuse the copy if the dataset has not changed. |
 
-The first PDF page provides the condensed procedure; this guide contains the full branches. A dataset transfer must retain provenance and applicable licences. No download link or prepared storage backup is distributed by the code repository. Exact reference evaluation requires access arranged with the authors; new acquisition is a separate route with variable results.
+The initial PDF manual pages provide the condensed procedure; this guide contains the full branches. A dataset transfer must retain provenance and applicable licences. No download link or prepared storage backup is distributed by the code repository. Exact reference evaluation requires access arranged with the authors; new acquisition is a separate route with variable results.
 
 ## 1. Verify code without data or models
 
