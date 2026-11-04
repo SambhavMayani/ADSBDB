@@ -1,7 +1,0 @@
-# EcoSentinel final report
-
-The maintained source is now [LaTeX](report/main.tex). Read the [compiled report](ecosentinel_report.pdf).
-
-It contains two unnumbered user-manual pages, a separate cover, eight numbered content pages and a one-page query-flow appendix (twelve physical pages). Edit the TeX source and rebuild the PDF together; this Markdown file only preserves existing links.
-
-Build commands are in the [documentation index](README.md#building-the-latex-report).
