@@ -21,7 +21,7 @@ Observed metadata includes different licences, for example CC BY-SA image/text r
 2. **Exact reference evaluation:** obtain the authors' dataset/metadata and matching index, or reconstruct in a new isolated installation with the recorded models. Preserve the authors' original index. A handoff must include matching data and index versions.
 3. **New acquisition:** run the optional adapters with configured credentials. APIs, quotas, files and revisions can change; report this new corpus separately.
 
-The authors must ensure the supervisor can access the repository and any reference-data handoff. The [user guide](user_guide.md) provides technical validation even without that handoff. No online download location for the local corpus is implied by this repository.
+The reference raw files and their metadata are supplied in the submission ZIP under `data/raw_dataset/`, separately from the GitHub repository. Use route B in the [user guide](user_guide.md) to build the zones and index from those inputs. A code-only clone can also run technical validation without that dataset.
 
 ## Pretrained models and decisions
 

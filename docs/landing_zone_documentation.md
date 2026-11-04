@@ -77,7 +77,7 @@ Cada candidato descubierto pasa por `inspect_file(...)` **antes de su subida**. 
 
 Son **límites operativos preventivos**, no umbrales de calidad del contenido. Los límites de Trusted pueden ser más estrictos. El registro local se escribe en `reports/security/incidents.jsonl`; puede notificarse mediante un webhook HTTPS configurado opcionalmente. No incluir datos confidenciales en mensajes o repositorios.
 
-**Alcance real:** comprobar firmas y cabeceras ayuda a reducir riesgos, pero **no sustituye un antivirus, análisis dinámico, sandboxing ni decodificadores aislados**. La demostración `python tests/demo_security_gate.py` utiliza bytes sintéticos inertes con extensión `.jpg`; no ejecuta código sospechoso.
+**Alcance real:** comprobar firmas y cabeceras ayuda a reducir riesgos, pero **no sustituye un antivirus, análisis dinámico, sandboxing ni decodificadores aislados**. Las pruebas de `tests/test_input_boundaries.py` y `tests/test_trusted_images.py` comprueban el rechazo de cabeceras ejecutables con bytes sintéticos; no ejecutan código sospechoso.
 
 ## 4. Temporal Landing: identidad e idempotencia técnica
 
@@ -141,8 +141,8 @@ python landing_zone/temporal_landing/ingest_local_data.py
 python landing_zone/persistent_landing/process_to_persistent.py --dry-run
 python landing_zone/persistent_landing/process_to_persistent.py
 
-# Demostración controlada del bloqueo de seguridad
-python tests/demo_security_gate.py
+# Pruebas del bloqueo de seguridad
+python -m pytest tests/test_input_boundaries.py tests/test_trusted_images.py -q
 ```
 
 **Validaciones efectuadas:** ingestión incremental y marcadores para imágenes; extensión operativa del mismo contrato a los 198 activos; integración del Security Gate comprobada con una repetición de la ingesta que conservó los marcadores y no provocó nuevas subidas innecesarias; demostración sintética de bloqueo. El estado de referencia tras persistencia completa son 100 imágenes, 34 audios y 64 textos, con Temporal vacía de los activos ya completados.

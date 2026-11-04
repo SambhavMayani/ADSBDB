@@ -1,6 +1,6 @@
-# EcoSentinel user and assessor guide
+# EcoSentinel user guide
 
-Run these commands in **Git Bash**, at the repository root, with `.venv` activated. The [README](../README.md) covers installation. This guide distinguishes a fresh clone from the authors' reference installation.
+Start with **Install and verify** in the [README](../README.md#install-and-verify) to create `.venv` and install dependencies. If you received the submission ZIP, extract it and work inside its `EcoSentinel/` folder; skip cloning GitHub. Otherwise, clone the repository first. Run the commands below in **Git Bash**, at the repository root, with that environment activated. This guide distinguishes a fresh clone from the authors' reference installation.
 
 A **dataset** is the collection of image, audio and text files. **Embeddings** are the numeric representations generated from those files or their segments. The vector index stores embeddings and source references; the original media remain in object storage.
 
@@ -13,7 +13,7 @@ Choose the route matching what you actually received:
 | Already prepared, matching S3 state and Chroma index | Prepare local credentials/models, verify with reconciliation, then follow section 4. The index alone does not provide the source media. |
 | Existing installation with its query copy | Start storage and the web; reuse the copy if the dataset has not changed. |
 
-The initial PDF manual pages provide the condensed procedure; this guide contains the full branches. A dataset transfer must retain provenance and applicable licences. No download link or prepared storage backup is distributed by the code repository. Exact reference evaluation requires access arranged with the authors; new acquisition is a separate route with variable results.
+The initial PDF manual pages provide the condensed procedure; this guide contains the full branches. The submission ZIP supplies the reference raw files and their metadata in `data/raw_dataset/`; after installation, model preparation and storage setup, use route B below. A GitHub clone does not include those files or a prepared storage backup. A dataset transfer must retain provenance and applicable licences; new acquisition is a separate route with variable results.
 
 ## 1. Verify code without data or models
 
@@ -27,10 +27,15 @@ python -m orchestration.pipeline --plan
 
 Expected: no dependency or lint errors, passing offline tests and a 16-step plan. Tests use generated files, temporary Chroma and controlled model doubles. They do not measure pretrained-model accuracy. The plan does not connect to storage or load models.
 
+### Optional storage integration check
+
+Skip this check to continue directly to model preparation. It uses separate test storage and does not populate the application dataset.
+
 ```bash
 docker compose -p ecosentinel-tests -f docker-compose.test.yml up -d
 curl --fail --retry 20 --retry-connrefused --retry-delay 1 http://127.0.0.1:19000/minio/health/ready
 python -m pytest -m integration -q
+docker compose -p ecosentinel-tests -f docker-compose.test.yml down
 ```
 
 Expected: the integration test runs all zones twice using real S3 and Chroma with deterministic encoders, checks reconciliation and zero additional encoder calls. It creates and removes only its own test buckets on port 19000.
@@ -77,7 +82,7 @@ The ordinary pipeline still requires the local S3 service even when no Internet 
 
 The repository excludes the authors' MinIO volume and 6,021-vector index. Choose **A or B** for wildlife data, then continue to section 4. The synthetic demonstration below is an optional technical check, not a prerequisite or a replacement for the wildlife dataset.
 
-**Technical demonstration.** With the test service running and embedding weights cached:
+**Optional technical demonstration.** This is separate from the application routes A/B. Start the test service with `docker compose -p ecosentinel-tests -f docker-compose.test.yml up -d`; with that service running and embedding weights cached:
 
 ```bash
 python -m orchestration.smoke --run --workdir data/assessor-smoke
@@ -128,6 +133,8 @@ If a download fails, the pipeline stops and records the failed step. Fix the pro
 ### B. Raw files already local: process without acquisition
 
 Complete model preparation and the common storage setup above. Preserve the supplied directory structure and `_metadata.json` sidecars:
+
+For the submission ZIP, this folder already contains the raw dataset. The pipeline below generates its embeddings and builds the index; neither precomputed embeddings nor model weights are included in the ZIP.
 
 ```text
 data/raw_dataset/
@@ -267,16 +274,15 @@ python -m orchestration.validate_rag --run
 
 `validate_reference --task3` checks the retained BLIP captioning baseline; **`validate_rag` checks the complete RAG**. Native-model checks are outside ordinary CI because of hardware/cache requirements. See [validation](testing_and_validation.md) and [versioned evidence](evidence/README.md).
 
-## 7. Short demonstration route
+## 7. Check the interface
 
-With the interface and models ready, show a stored-image Task 1 query, then image-text Task 2 with “Iberian lynx in its natural habitat”. Open the provenance of one image and one text. For Task 3, inspect the recorded frog example and its citations; offer live CPU generation after the timed talk. End with an unsupported request and the harmless security demonstration:
+With the interface and models ready, try a stored-image Task 1 query, then image-text Task 2 with “Iberian lynx in its natural habitat”. Open the provenance of one image and one text. For Task 3, ask a habitat question and inspect its citations, then try an unsupported request. Allow several minutes for CPU generation. Run the input-validation tests separately:
 
 ```bash
-python tests/demo_security_gate.py
 python -m pytest tests/test_input_boundaries.py tests/test_trusted_images.py -q
 ```
 
-Expected: the synthetic executable header is blocked; no executable runs or uploads. Tests generate their own edge cases. See [validation](testing_and_validation.md) for the policy matrix and limits. The [presentation](presentation/README.md) contains the timed English script.
+Tests generate their own edge cases, including executable headers disguised as images. See [validation](testing_and_validation.md) for the policy matrix and limits.
 
 ## 8. Troubleshoot and stop
 

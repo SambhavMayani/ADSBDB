@@ -49,11 +49,3 @@ htmlcov/
 .ruff_cache/
 .env.*
 !.env.example
-
-# LaTeX editor intermediates; source and final report remain versioned
-/docs/report/*.aux
-/docs/report/*.out
-/docs/report/*.toc
-/docs/report/*.synctex.gz
-/docs/report/*.xdv
-/docs/report/main.pdf

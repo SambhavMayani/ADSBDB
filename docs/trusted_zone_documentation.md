@@ -2,7 +2,7 @@
 
 **Estado:** las **tres modalidades están implementadas, probadas en MinIO y validadas con el dataset actual**. Reejecución idempotente comprobada. **Fecha de revisión:** 23-10-2026.
 
-Este documento **sustituye** los anteriores `trusted_zone_design.md`, `trusted_audio_text_design.md` y `trusted_audio_text_usage.md`. Reúne arquitectura, criterios, pruebas, perfiles de calidad y guía de uso, evitando información duplicada o incompatible.
+Este documento reúne la arquitectura, los criterios de aceptación, las pruebas, los perfiles de calidad y la guía de uso de las tres modalidades.
 
 > **Principio rector:** controles de calidad explicables y trazables, **conservar información ecológica relevante** y no transformar los datos para un modelo concreto. Formatted estandariza codificación; Trusted comprueba validez, aplica política de duplicados y registra métricas. El Security Gate de ingestión se explica en [Landing](landing_zone_documentation.md) porque actúa **antes** de Temporal, no aquí.
 
@@ -62,7 +62,7 @@ trusted_zone/reporting/templates/            # HTML/Jinja2
 
 tests/test_trusted_images.py
 tests/test_trusted_audio_text.py
-tests/demo_security_gate.py
+tests/test_input_boundaries.py
 ```
 
 Los YAML son las **fuentes de verdad de umbrales**, no esta tabla de documentación. Cada regla debe distinguir claramente entre **rechazo obligatorio**, **candidato a duplicado** y **alerta meramente informativa**. No se acepta que un warning por sí solo pruebe un defecto o una clasificación taxonómica incorrecta.
@@ -236,7 +236,7 @@ python -m pip install -r requirements.txt
 python -m pytest tests/test_trusted_images.py tests/test_trusted_audio_text.py -v
 
 # 2. Pruebas de seguridad y vista previa (no publican Trusted)
-python tests/demo_security_gate.py
+python -m pytest tests/test_input_boundaries.py -q
 python trusted_zone/validate_images.py --dry-run --max-items 3
 python trusted_zone/validate_audio.py --dry-run --max-items 3
 python trusted_zone/validate_text.py --dry-run --max-items 3

@@ -52,13 +52,8 @@ Quality manifests carry source keys, status, reason, metrics and policy informat
 
 The RAG timeout correction is general: incomplete output remains a technical error, context and evidence are bounded, and multipart questions have distinct evidence slots. No answer is hard-coded for the frog example. See [Task 3](generative_tasks_documentation.md) and [validation](testing_and_validation.md).
 
-## Initial orchestrator package
-
-The supplied ZIP had SHA-256 43f9579a7fbc747a49bb94c1eb89bcd9b88b34c57e44d62314db4b73674bf141. Its five additive entries were the orchestration package, its test file, its guide and a patch README. It did not replace validators, indexers or data. Its 47 offline tests were an initial baseline; current recovery, preservation and native-model evidence are documented separately.
-
-
-## Exact-search threshold and focused validation (29 October 2026)
+## Exact-search threshold
 
 The existing search path scans all eligible vectors when the filtered count is at most 64, and delegates to Chroma HNSW at 65 or more. The cap keeps fallback work small and supports tiny segments without a persisted HNSW reader. It is not a benchmarked optimum. At dimension 512, 64 float32 vectors contain 128 KiB of vector payload, excluding metadata and runtime overhead. Future tuning should compare latency and recall rather than infer optimality from that size.
 
-The delivery review adds 32 storage/recovery/search boundary tests without changing production behaviour. Offline statement coverage rises from 68.17% to 72.37% with the same denominator. The purpose is to verify preservation and failure detection, not to maximise a percentage by excluding code. The report and presentation use the new measured result and keep earlier integration/native evidence separately dated.
+Boundary tests in `tests/test_storage_boundaries.py` verify both search routes at 64 and 65 eligible vectors, including filtered collections. Test results and coverage are recorded in [validation](testing_and_validation.md).

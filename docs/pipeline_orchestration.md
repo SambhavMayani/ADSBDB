@@ -2,11 +2,9 @@
 
 **Responsabilidad:** ejecutar los scripts de las zonas en orden, detenerse ante fallos y producir evidencia auditable. **Entrada:** `python -m orchestration.pipeline`.
 
-## 1. Integración del ZIP y cambios
+## 1. Función del orquestador
 
-El archivo original `ecosentinel_orchestration_v1.zip` tenía SHA-256 `43f9579a7fbc747a49bb94c1eb89bcd9b88b34c57e44d62314db4b73674bf141`. Sus cinco archivos eran nuevos y sus 47 pruebas iniciales pasaron en Windows. Se preservaron los puntos de entrada y las colecciones existentes.
-
-La integración añade bloqueo independiente de la ruta de logs, UTF-8 Windows, timeout, terminación de procesos descendientes, redacción de secretos y conciliación final. El plan actual tiene **16 pasos**, o **19** con adquisición. También se corrigió un fallo previo: el generador del informe de imágenes no creaba el directorio de salida personalizado.
+El orquestador conecta las zonas mediante sus puntos de entrada. Incluye bloqueo independiente de la ruta de logs, UTF-8 en Windows, timeout, terminación de procesos descendientes, redacción de secretos y conciliación final. El plan tiene **16 pasos**, o **19** con adquisición.
 
 ## 2. Plan de ejecución
 
@@ -19,7 +17,7 @@ La integración añade bloqueo independiente de la ruta de logs, UTF-8 Windows, 
 | Exploitation | **11** images; **12** text; **13** audio; **14** image_text; **15** audio_text |
 | Verification | **16** Conciliar fuentes, hashes y cobertura de fragmentos |
 
-Todos los pasos son secuenciales; el esquema detallado está en la diapositiva 5 de la presentación. La adquisición explícita añade tres descargas después de Storage y antes de la ingesta (19 pasos en total). `--plan` no abre servicios, modelos ni informes; `--run` autoriza ejecutar el plan. No se arranca Docker ni se adquieren datos de fauna automáticamente.
+Todos los pasos son secuenciales. La adquisición explícita añade tres descargas después de Storage y antes de la ingesta (19 pasos en total). `--plan` no abre servicios, modelos ni informes; `--run` ejecuta el plan. No se arranca Docker ni se adquieren datos de fauna automáticamente.
 
 ```bash
 python -m orchestration.pipeline --plan
